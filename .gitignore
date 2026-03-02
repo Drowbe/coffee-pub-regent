@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+
+# Nested repo / empty clone
+coffee-pub-regent/
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/
+*.code-workspace
+
+# Local / env (if you add any)
+.env
+.env.local
+*.local
+
+# Lock files (optional: remove if you want to track)
+# *.lock
