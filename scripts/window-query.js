@@ -274,6 +274,8 @@ export class BlacksmithWindowQuery extends BlacksmithWindowBaseV2 {
     static _workspaceDelegationAttached = false;
     static _cardButtonDelegationAttached = false;
     static _enterKeyDelegationAttached = false;
+    /** One-time document delegation for drag/drop so drop targets work when Application V2 body part renders after activateListeners. */
+    static _dropDelegationAttached = false;
 
     // ************************************
     // ** OPTIONS Set Defaults
@@ -537,6 +539,7 @@ export class BlacksmithWindowQuery extends BlacksmithWindowBaseV2 {
                 w.switchWorkspace(wrapper, workspaceId);
             }, true);
         }
+        this._attachDropDelegationOnce();
         if (!BlacksmithWindowQuery._enterKeyDelegationAttached) {
             BlacksmithWindowQuery._enterKeyDelegationAttached = true;
             document.addEventListener('keydown', (e) => {
@@ -556,6 +559,52 @@ export class BlacksmithWindowQuery extends BlacksmithWindowBaseV2 {
                 }
             }, true);
         }
+    }
+
+    /**
+     * Attach document-level drag/drop delegation once so drop targets work when Application V2
+     * body part renders after activateListeners (workspace drop zones may not exist at attach time).
+     */
+    _attachDropDelegationOnce() {
+        if (BlacksmithWindowQuery._dropDelegationAttached) return;
+        BlacksmithWindowQuery._dropDelegationAttached = true;
+        const DROP_ZONE_SELECTOR = '.panel-drop-zone, .criteria-dropzone, .encounters-drop-zone';
+        document.addEventListener('dragover', (e) => {
+            const w = BlacksmithWindowQuery._ref;
+            if (!w) return;
+            const wrapper = document.querySelector(`#${w.id} #coffee-pub-regent-wrapper`);
+            if (!wrapper?.contains(e.target)) return;
+            const dropZone = e.target.closest?.(DROP_ZONE_SELECTOR);
+            if (!dropZone) return;
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            wrapper.querySelectorAll(DROP_ZONE_SELECTOR).forEach((z) => z.classList.remove('dragover'));
+            dropZone.classList.add('dragover');
+        }, true);
+        document.addEventListener('dragleave', (e) => {
+            const dropZone = e.target.closest?.(DROP_ZONE_SELECTOR);
+            if (!dropZone) return;
+            if (dropZone.contains(e.relatedTarget)) return;
+            dropZone.classList.remove('dragover');
+        }, true);
+        document.addEventListener('drop', (e) => {
+            const w = BlacksmithWindowQuery._ref;
+            if (!w) return;
+            const wrapper = document.querySelector(`#${w.id} #coffee-pub-regent-wrapper`);
+            if (!wrapper?.contains(e.target)) return;
+            const dropZone = e.target.closest?.(DROP_ZONE_SELECTOR);
+            if (!dropZone) return;
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.classList.remove('dragover');
+            if (dropZone.classList.contains('panel-drop-zone')) {
+                w._handlePanelDrop(dropZone, e);
+            } else if (dropZone.classList.contains('criteria-dropzone')) {
+                w._handleCriteriaDrop(dropZone, e);
+            } else if (dropZone.classList.contains('encounters-drop-zone')) {
+                w._handleEncountersDrop(dropZone, e);
+            }
+        }, true);
     }
 
     async _onFirstRender(_context, options) {
@@ -717,138 +766,8 @@ export class BlacksmithWindowQuery extends BlacksmithWindowBaseV2 {
         if (wrapper.dataset.regentWorksheetAttached === '1') return;
         wrapper.dataset.regentWorksheetAttached = '1';
 
-        if (typeof addNPCDropZoneHandlers === 'function') {
-            addNPCDropZoneHandlers('encounter');
-        }
-
-        wrapper.querySelectorAll('.panel-drop-zone').forEach((dropZone) => {
-            dropZone.addEventListener('dragover', (event) => {
-                event.preventDefault();
-                dropZone.classList.add('dragover');
-            });
-            dropZone.addEventListener('dragleave', () => {
-                dropZone.classList.remove('dragover');
-            });
-            dropZone.addEventListener('drop', async (event) => {
-                event.preventDefault();
-                dropZone.classList.remove('dragover');
-                try {
-                    const rawData = event.dataTransfer.getData('text/plain');
-                    const data = JSON.parse(rawData);
-                    const zoneId = dropZone.id.split('-').pop();
-                    if (dropZone.id.includes('encounters-drop-zone')) {
-                        if (data.type === 'JournalEntry' || data.type === 'JournalEntryPage') {
-                            let journal, page;
-                            if (data.type === 'JournalEntryPage') {
-                                page = await fromUuid(data.uuid);
-                                if (!page) {
-                                    postConsoleAndNotification(MODULE.NAME, 'Regent: Page not found for UUID:', data.uuid, true, false);
-                                    return;
-                                }
-                                journal = page.parent;
-                                await addEncounterToNarrative(zoneId, journal, page);
-                            } else {
-                                journal = await fromUuid(data.uuid);
-                                if (!journal) {
-                                    postConsoleAndNotification(MODULE.NAME, 'Regent: Journal not found for UUID:', data.uuid, true, false);
-                                    return;
-                                }
-                                if (data.pageId) {
-                                    page = journal.pages.get(data.pageId);
-                                    if (page) await addEncounterToNarrative(zoneId, journal, page);
-                                } else {
-                                    const pages = journal.pages.contents;
-                                    if (pages.length === 0) {
-                                        ui.notifications.warn("This journal has no pages.");
-                                        return;
-                                    }
-                                    if (pages.length === 1) {
-                                        await addEncounterToNarrative(zoneId, journal, pages[0]);
-                                    } else {
-                                        const dialog = new Dialog({
-                                            title: "Select Encounter Page",
-                                            content: `<div><select id="page-select" style="width: 100%;">
-                                                ${pages.map(p => `<option value="${p.id}">${p.name}</option>`).join('')}
-                                            </select></div>`,
-                                            buttons: {
-                                                select: {
-                                                    label: "Select",
-                                                    callback: async (html) => {
-                                                        let nativeDialogHtml = html;
-                                                        if (html && (html.jquery || typeof html.find === 'function')) {
-                                                            nativeDialogHtml = html[0] || html.get?.(0) || html;
-                                                        }
-                                                        const pageSelect = nativeDialogHtml?.querySelector?.('#page-select');
-                                                        const pageId = pageSelect ? pageSelect.value : null;
-                                                        if (pageId) {
-                                                            const page = journal.pages.get(pageId);
-                                                            if (page) await addEncounterToNarrative(zoneId, journal, page);
-                                                        }
-                                                    }
-                                                },
-                                                cancel: { label: "Cancel" }
-                                            },
-                                            default: "select"
-                                        });
-                                        dialog.render(true);
-                                    }
-                                }
-                            }
-                        }
-                    } else if (dropZone.id.includes('monster-drop-zone')) {
-                        if (data.type === 'Actor') {
-                            const actor = await fromUuid(data.uuid);
-                            if (actor) {
-                                const tokenData = {
-                                    actor, name: actor.name,
-                                    document: { disposition: -1, texture: { src: actor.img }, effects: [], uuid: data.uuid }
-                                };
-                                await this.addTokensToContainer(zoneId, 'monster', [tokenData]);
-                                const monstersContainer = document.querySelector(`#workspace-section-monsters-content-${zoneId} .monsters-container`);
-                                if (monstersContainer) {
-                                    const monsterCards = Array.from(monstersContainer.querySelectorAll('.player-card'));
-                                    const tokens = monsterCards.map(card => ({ actor: { system: { details: { cr: card.dataset.cr } } } }));
-                                    updateTotalMonsterCR(zoneId, tokens);
-                                }
-                            }
-                        }
-                    } else if (dropZone.id.includes('party-drop-zone')) {
-                        if (data.type === 'Actor') {
-                            const actor = await fromUuid(data.uuid);
-                            if (actor && actor.type === 'character') {
-                                const tokenData = {
-                                    actor, name: actor.name,
-                                    document: { disposition: 1, texture: { src: actor.img }, effects: [], uuid: data.uuid }
-                                };
-                                await this.addTokensToContainer(zoneId, 'player', [tokenData]);
-                                this._applyTokenDataToButtons([tokenData]);
-                                updateTotalPlayerCounts(zoneId);
-                                updateEncounterDetails(zoneId);
-                            } else {
-                                ui.notifications.warn("Only player characters can be added to the party.");
-                            }
-                        }
-                    } else if (dropZone.id.includes('npcs-drop-zone')) {
-                        if (data.type === 'Actor') {
-                            const actor = await fromUuid(data.uuid);
-                            if (actor && actor.type === 'npc' && actor.prototypeToken.disposition >= 0) {
-                                const tokenData = {
-                                    actor, name: actor.name,
-                                    document: { disposition: 1, texture: { src: actor.img }, effects: [], uuid: data.uuid }
-                                };
-                                await this.addTokensToContainer(zoneId, 'npc', [tokenData]);
-                                updateTotalNPCCR(zoneId);
-                                updateAllCounts(zoneId);
-                            } else {
-                                ui.notifications.warn("Only non-hostile NPCs can be added to the NPC worksheet.");
-                            }
-                        }
-                    }
-                } catch (error) {
-                    postConsoleAndNotification(MODULE.NAME, 'Error processing dropped item:', error, false, false);
-                }
-            });
-        });
+        // Drop zones are handled by document-level delegation (_attachDropDelegationOnce) so they work
+        // when Application V2 body part renders after activateListeners (quick encounter, etc.).
 
         wrapper.querySelectorAll('.add-tokens-button').forEach((button) => {
             button.addEventListener('click', async (event) => {
@@ -901,103 +820,6 @@ export class BlacksmithWindowQuery extends BlacksmithWindowBaseV2 {
             element.addEventListener('change', () => saveNarrativeCookies(this.workspaceId));
         });
 
-        wrapper.querySelectorAll('.criteria-dropzone').forEach((dropZone) => {
-            dropZone.addEventListener('dragover', (event) => {
-                event.preventDefault();
-                dropZone.classList.add('dragover');
-            });
-            dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
-            dropZone.addEventListener('drop', async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                dropZone.classList.remove('dragover');
-                try {
-                    const rawData = event.dataTransfer.getData('text/plain');
-                    if (!rawData) return;
-                    const data = JSON.parse(rawData);
-                    const zoneId = dropZone.id.split('-').pop();
-                    if (data.type === 'Token') {
-                        const tokenDoc = await fromUuid(data.uuid);
-                        if (!tokenDoc) return;
-                        const token = canvas.tokens.get(tokenDoc.id) || { actor: tokenDoc.actor, document: tokenDoc, name: tokenDoc.name };
-                        await TokenHandler.updateSkillCheckFromToken(zoneId, token);
-                    } else if (data.type === 'Actor') {
-                        const actor = await fromUuid(data.uuid);
-                        if (!actor) return;
-                        const token = { actor, document: { disposition: actor.type === 'npc' ? -1 : 1, texture: { src: actor.img }, effects: [] }, name: actor.name };
-                        await TokenHandler.updateSkillCheckFromToken(zoneId, token);
-                    } else if (data.type === 'Item') {
-                        const item = await fromUuid(data.uuid);
-                        if (!item) return;
-                        await TokenHandler.updateSkillCheckFromToken(zoneId, null, item);
-                    }
-                } catch (error) {
-                    postConsoleAndNotification(MODULE.NAME, 'Error processing criteria drop:', error, false, false);
-                }
-            });
-        });
-
-        wrapper.querySelectorAll('.encounters-drop-zone').forEach((dropZone) => {
-            dropZone.addEventListener('dragover', (event) => {
-                event.preventDefault();
-                dropZone.classList.add('dragover');
-            });
-            dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
-            dropZone.addEventListener('drop', async (event) => {
-                event.preventDefault();
-                dropZone.classList.remove('dragover');
-                try {
-                    const data = JSON.parse(event.dataTransfer.getData('text/plain'));
-                    if (data.type === 'JournalEntry' && data.uuid) {
-                        const zoneId = dropZone.id.split('-').pop();
-                        const journal = await fromUuid(data.uuid);
-                        if (data.pageId) {
-                            const page = journal.pages.get(data.pageId);
-                            if (page) await addEncounterToNarrative(zoneId, journal, page);
-                        } else {
-                            const pages = journal.pages.contents;
-                            if (pages.length === 0) {
-                                ui.notifications.warn("This journal has no pages.");
-                                return;
-                            }
-                            if (pages.length === 1) {
-                                await addEncounterToNarrative(zoneId, journal, pages[0]);
-                            } else {
-                                const dialog = new Dialog({
-                                    title: "Select Encounter Page",
-                                    content: `<div><select id="page-select" style="width: 100%;">
-                                        ${pages.map(p => `<option value="${p.id}">${p.name}</option>`).join('')}
-                                    </select></div>`,
-                                    buttons: {
-                                        select: {
-                                            label: "Select",
-                                            callback: async (html) => {
-                                                let nativeDialogHtml = html;
-                                                if (html && (html.jquery || typeof html.find === 'function')) {
-                                                    nativeDialogHtml = html[0] || html.get?.(0) || html;
-                                                }
-                                                const pageSelect = nativeDialogHtml?.querySelector?.('#page-select');
-                                                const pageId = pageSelect ? pageSelect.value : null;
-                                                if (pageId) {
-                                                    const page = journal.pages.get(pageId);
-                                                    if (page) await addEncounterToNarrative(zoneId, journal, page);
-                                                }
-                                            }
-                                        },
-                                        cancel: { label: "Cancel" }
-                                    },
-                                    default: "select"
-                                });
-                                dialog.render(true);
-                            }
-                        }
-                    }
-                } catch (error) {
-                    postConsoleAndNotification(MODULE.NAME, 'Error processing dropped journal:', error, false, false);
-                }
-            });
-        });
-
         wrapper.addEventListener('click', (event) => {
             const target = event.target.closest('.roll-dice-button');
             if (target) {
@@ -1043,6 +865,220 @@ export class BlacksmithWindowQuery extends BlacksmithWindowBaseV2 {
             }
         });
         dialog.render(true);
+    }
+
+    /** Panel drop zone handler (encounters, monster, party, npcs). Used by document-level drop delegation. */
+    async _handlePanelDrop(dropZone, event) {
+        try {
+            const rawData = event.dataTransfer.getData('text/plain');
+            const data = JSON.parse(rawData);
+            const zoneId = dropZone.id.split('-').pop();
+            if (dropZone.id.includes('encounters-drop-zone')) {
+                if (data.type === 'JournalEntry' || data.type === 'JournalEntryPage') {
+                    let journal, page;
+                    if (data.type === 'JournalEntryPage') {
+                        page = await fromUuid(data.uuid);
+                        if (!page) {
+                            postConsoleAndNotification(MODULE.NAME, 'Regent: Page not found for UUID:', data.uuid, true, false);
+                            return;
+                        }
+                        journal = page.parent;
+                        await addEncounterToNarrative(zoneId, journal, page);
+                    } else {
+                        journal = await fromUuid(data.uuid);
+                        if (!journal) {
+                            postConsoleAndNotification(MODULE.NAME, 'Regent: Journal not found for UUID:', data.uuid, true, false);
+                            return;
+                        }
+                        if (data.pageId) {
+                            page = journal.pages.get(data.pageId);
+                            if (page) await addEncounterToNarrative(zoneId, journal, page);
+                        } else {
+                            const pages = journal.pages.contents;
+                            if (pages.length === 0) {
+                                ui.notifications.warn("This journal has no pages.");
+                                return;
+                            }
+                            if (pages.length === 1) {
+                                await addEncounterToNarrative(zoneId, journal, pages[0]);
+                            } else {
+                                const dialog = new Dialog({
+                                    title: "Select Encounter Page",
+                                    content: `<div><select id="page-select" style="width: 100%;">
+                                        ${pages.map(p => `<option value="${p.id}">${p.name}</option>`).join('')}
+                                    </select></div>`,
+                                    buttons: {
+                                        select: {
+                                            label: "Select",
+                                            callback: async (html) => {
+                                                let nativeDialogHtml = html;
+                                                if (html && (html.jquery || typeof html.find === 'function')) {
+                                                    nativeDialogHtml = html[0] || html.get?.(0) || html;
+                                                }
+                                                const pageSelect = nativeDialogHtml?.querySelector?.('#page-select');
+                                                const pageId = pageSelect ? pageSelect.value : null;
+                                                if (pageId) {
+                                                    const page = journal.pages.get(pageId);
+                                                    if (page) await addEncounterToNarrative(zoneId, journal, page);
+                                                }
+                                            }
+                                        },
+                                        cancel: { label: "Cancel" }
+                                    },
+                                    default: "select"
+                                });
+                                dialog.render(true);
+                            }
+                        }
+                    }
+                }
+            } else if (dropZone.id.includes('monster-drop-zone')) {
+                if (data.type === 'Actor') {
+                    const actor = await fromUuid(data.uuid);
+                    if (actor) {
+                        const tokenData = {
+                            actor, name: actor.name,
+                            document: { disposition: -1, texture: { src: actor.img }, effects: [], uuid: data.uuid }
+                        };
+                        await this.addTokensToContainer(zoneId, 'monster', [tokenData]);
+                        const monstersContainer = document.querySelector(`#workspace-section-monsters-content-${zoneId} .monsters-container`);
+                        if (monstersContainer) {
+                            const monsterCards = Array.from(monstersContainer.querySelectorAll('.player-card'));
+                            const tokens = monsterCards.map(card => ({ actor: { system: { details: { cr: card.dataset.cr } } } }));
+                            updateTotalMonsterCR(zoneId, tokens);
+                        }
+                    }
+                }
+            } else if (dropZone.id.includes('party-drop-zone')) {
+                if (data.type === 'Actor') {
+                    const actor = await fromUuid(data.uuid);
+                    if (actor && actor.type === 'character') {
+                        const tokenData = {
+                            actor, name: actor.name,
+                            document: { disposition: 1, texture: { src: actor.img }, effects: [], uuid: data.uuid }
+                        };
+                        await this.addTokensToContainer(zoneId, 'player', [tokenData]);
+                        this._applyTokenDataToButtons([tokenData]);
+                        updateTotalPlayerCounts(zoneId);
+                        updateEncounterDetails(zoneId);
+                    } else {
+                        ui.notifications.warn("Only player characters can be added to the party.");
+                    }
+                }
+            } else if (dropZone.id.includes('npcs-drop-zone')) {
+                if (data.type === 'Actor') {
+                    const actor = await fromUuid(data.uuid);
+                    if (actor && actor.type === 'npc' && actor.prototypeToken.disposition >= 0) {
+                        const tokenData = {
+                            actor, name: actor.name,
+                            document: { disposition: 1, texture: { src: actor.img }, effects: [], uuid: data.uuid }
+                        };
+                        await this.addTokensToContainer(zoneId, 'npc', [tokenData]);
+                        updateTotalNPCCR(zoneId);
+                        updateAllCounts(zoneId);
+                    } else {
+                        ui.notifications.warn("Only non-hostile NPCs can be added to the NPC worksheet.");
+                    }
+                } else if (data.type === 'Token') {
+                    const tokenDoc = await fromUuid(data.uuid);
+                    if (!tokenDoc) return;
+                    if (tokenDoc.actor?.type !== 'npc' || tokenDoc.document?.disposition < 0) {
+                        ui.notifications.warn("Only non-hostile NPCs can be added to the NPC worksheet.");
+                        return;
+                    }
+                    const tokenData = {
+                        actor: tokenDoc.actor,
+                        name: tokenDoc.name,
+                        document: tokenDoc.document || { disposition: 1, texture: { src: tokenDoc.actor?.img }, effects: [], uuid: data.uuid }
+                    };
+                    await this.addTokensToContainer(zoneId, 'npc', [tokenData]);
+                    updateTotalNPCCR(zoneId);
+                    updateAllCounts(zoneId);
+                }
+            }
+        } catch (error) {
+            postConsoleAndNotification(MODULE.NAME, 'Error processing dropped item:', error, false, false);
+        }
+    }
+
+    /** Criteria dropzone handler (assistant/character). Used by document-level drop delegation. */
+    async _handleCriteriaDrop(dropZone, event) {
+        try {
+            const rawData = event.dataTransfer.getData('text/plain');
+            if (!rawData) return;
+            const data = JSON.parse(rawData);
+            const zoneId = dropZone.id.split('-').pop();
+            if (data.type === 'Token') {
+                const tokenDoc = await fromUuid(data.uuid);
+                if (!tokenDoc) return;
+                const token = canvas.tokens.get(tokenDoc.id) || { actor: tokenDoc.actor, document: tokenDoc, name: tokenDoc.name };
+                await TokenHandler.updateSkillCheckFromToken(zoneId, token);
+            } else if (data.type === 'Actor') {
+                const actor = await fromUuid(data.uuid);
+                if (!actor) return;
+                const token = { actor, document: { disposition: actor.type === 'npc' ? -1 : 1, texture: { src: actor.img }, effects: [] }, name: actor.name };
+                await TokenHandler.updateSkillCheckFromToken(zoneId, token);
+            } else if (data.type === 'Item') {
+                const item = await fromUuid(data.uuid);
+                if (!item) return;
+                await TokenHandler.updateSkillCheckFromToken(zoneId, null, item);
+            }
+        } catch (error) {
+            postConsoleAndNotification(MODULE.NAME, 'Error processing criteria drop:', error, false, false);
+        }
+    }
+
+    /** Encounters drop zone handler (narrative). Used by document-level drop delegation. */
+    async _handleEncountersDrop(dropZone, event) {
+        try {
+            const data = JSON.parse(event.dataTransfer.getData('text/plain'));
+            if (data.type === 'JournalEntry' && data.uuid) {
+                const zoneId = dropZone.id.split('-').pop();
+                const journal = await fromUuid(data.uuid);
+                if (data.pageId) {
+                    const page = journal.pages.get(data.pageId);
+                    if (page) await addEncounterToNarrative(zoneId, journal, page);
+                } else {
+                    const pages = journal.pages.contents;
+                    if (pages.length === 0) {
+                        ui.notifications.warn("This journal has no pages.");
+                        return;
+                    }
+                    if (pages.length === 1) {
+                        await addEncounterToNarrative(zoneId, journal, pages[0]);
+                    } else {
+                        const dialog = new Dialog({
+                            title: "Select Encounter Page",
+                            content: `<div><select id="page-select" style="width: 100%;">
+                                ${pages.map(p => `<option value="${p.id}">${p.name}</option>`).join('')}
+                            </select></div>`,
+                            buttons: {
+                                select: {
+                                    label: "Select",
+                                    callback: async (html) => {
+                                        let nativeDialogHtml = html;
+                                        if (html && (html.jquery || typeof html.find === 'function')) {
+                                            nativeDialogHtml = html[0] || html.get?.(0) || html;
+                                        }
+                                        const pageSelect = nativeDialogHtml?.querySelector?.('#page-select');
+                                        const pageId = pageSelect ? pageSelect.value : null;
+                                        if (pageId) {
+                                            const page = journal.pages.get(pageId);
+                                            if (page) await addEncounterToNarrative(zoneId, journal, page);
+                                        }
+                                    }
+                                },
+                                cancel: { label: "Cancel" }
+                            },
+                            default: "select"
+                        });
+                        dialog.render(true);
+                    }
+                }
+            }
+        } catch (error) {
+            postConsoleAndNotification(MODULE.NAME, 'Error processing dropped journal:', error, false, false);
+        }
     }
 
     // ************************************
