@@ -467,6 +467,9 @@
     padding-left: 3px;
 }
 
+
+/* MESSAGE CONTENT */
+
 #coffee-pub-regent-wrapper .regent-message-content {
     font-weight: 400;
     font-size: 1.0em;
@@ -482,14 +485,54 @@
     box-shadow: rgba(99, 99, 99, 0.4) 0px 2px 2px 0px;
 }
 
-#coffee-pub-regent-wrapper .regent-message-content h4 {
-    color: #746950;
+
+
+#coffee-pub-regent-wrapper .regent-message-content h1 {
+    font-weight: 900;
+    font-size: 1.6em;
+    color: rgba(64, 58, 44, 0.9);
     border-bottom: 1px dotted #b6a57e;
+    margin: 0;
+    padding: 0;
+} 
+#coffee-pub-regent-wrapper .regent-message-content h2 {
+    font-weight: 700;
+    font-size: 1.6em;
+    color: rgba(64, 58, 44, 0.9);
+    border-bottom: 0px dotted #b6a57e;
+    margin: 0;
+    padding: 0;
+} 
+
+#coffee-pub-regent-wrapper .regent-message-content h3 {
+    font-weight: 700;
+    font-size: 1.6em;
+    color: rgba(64, 58, 44, 0.9);
+    border-bottom: 1px dotted #b6a57e;
+    margin: 0;
+    padding: 0;
+} 
+
+#coffee-pub-regent-wrapper .regent-message-content h4 {
+    font-weight: 900;
+    font-size: 1.4em;
+    color: rgba(64, 58, 44, 0.9);
+    border-bottom: 1px dotted #b6a57e;
+    margin: 0;
+    padding: 0;
 }
 
 #coffee-pub-regent-wrapper .regent-message-content h5 {
-    color: #636350;
+    font-weight: 700;
+    font-size: 1.0em;
+    color: rgba(102, 92, 70, 0.9);
+    margin: 0;
+    padding: 0;
 }
+
+
+
+
 
 #coffee-pub-regent-wrapper .regent-message-divider {
     color: #a19476ce;

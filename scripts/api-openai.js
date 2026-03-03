@@ -324,10 +324,74 @@ export class OpenAIAPI {
                 postConsoleAndNotification(MODULE.NAME, "Error processing JSON", e, false, true);
             }
         } else {
+            // If model returned Markdown despite prompt, convert to HTML for display
+            if (/###?|\*\*[^*]+\*\*/.test(content)) {
+                content = this._markdownToHtml(content);
+            }
+            content = this._cleanupHtmlResponse(content);
             content = /<\/?[a-z][\s\S]*>/i.test(content) || !content.includes('\n') ? content : content.replace(/\n/g, "<br>");
             content = content.replaceAll("<p></p>", "").replace(/```\w*\n?/g, "").trim();
         }
         response.content = content;
         return response;
+    }
+
+    /**
+     * Convert common Markdown to HTML so responses that still use ### or ** display correctly.
+     * Used as fallback when the model ignores "use HTML only" instruction.
+     */
+    static _markdownToHtml(text) {
+        // Treat both newlines and <br> as line boundaries for headings
+        const lines = text.split(/(?:<br\s*\/?>|\n)/);
+        let out = lines.map((line) => {
+            const t = line.trim();
+            if (t.startsWith("### ")) return `<h4>${t.slice(4)}</h4>`;
+            if (t.startsWith("## ")) return `<h4>${t.slice(3)}</h4>`;
+            if (t.startsWith("# ")) return `<h4>${t.slice(2)}</h4>`;
+            return line;
+        }).join("<br>");
+        // Bold: **text** -> <b>text</b>
+        out = out.replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
+        return out;
+    }
+
+    /**
+     * Clean up HTML responses: strip inline styles, convert h3 to h4, convert dash/numbered lines to <ul><li>.
+     */
+    static _cleanupHtmlResponse(text) {
+        let out = text;
+        // Strip inline style attributes
+        out = out.replace(/\s+style="[^"]*"/gi, "");
+        // Prefer h4/h5: downgrade h3 to h4
+        out = out.replace(/<\/?h3\b[^>]*>/gi, (m) => m.startsWith("</") ? "</h4>" : "<h4>");
+        // Convert dash or numbered list lines to <ul><li>
+        const parts = out.split(/(<br\s*\/?>|\n)/);
+        const result = [];
+        let inList = false;
+        for (let i = 0; i < parts.length; i++) {
+            const p = parts[i];
+            const isBr = /^<br\s*\/?>$/i.test(p) || p === "\n";
+            const nextContent = parts[i + 1] ?? "";
+            const trimmed = String(nextContent).trim();
+            const isListItem = /^\s*[-*]\s+/.test(trimmed) || /^\s*\d+\.\s+/.test(trimmed);
+            if (isBr && isListItem) {
+                const content = trimmed.replace(/^\s*[-*]\s+/, "").replace(/^\s*\d+\.\s+/, "");
+                if (!inList) {
+                    result.push(p, "<ul>");
+                    inList = true;
+                }
+                result.push("<li>", content, "</li>");
+                i += 1;
+                continue;
+            }
+            if (inList && isBr && !isListItem) {
+                result.push("</ul>", p);
+                inList = false;
+                continue;
+            }
+            result.push(p);
+        }
+        if (inList) result.push("</ul>");
+        return result.join("");
     }
 }

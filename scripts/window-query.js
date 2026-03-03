@@ -17,6 +17,8 @@ import { TokenHandler } from './token-handler.js';
 
 // Base template for AI instructions
 const BASE_PROMPT_TEMPLATE = {
+    /** Instruction for all non-JSON responses: use HTML only, never Markdown. Included in default chat prompt. */
+    htmlFormatting: `Format your response using HTML only—never use Markdown. Use <p> for paragraphs—do not use <br> or <br><br> to separate blocks of text. Use <h4> or <h5> for headings. Use <b> for bold. Use <ul><li> for bullet lists. Do not add inline styles. Use <table> only for tabular data.`,
     formatting: `Format your response as valid JSON with these guidelines:
 - Use bold (**text**) for emphasis
 - Create lists with <ul><li>item</li></ul>
@@ -1898,7 +1900,8 @@ export class BlacksmithWindowQuery extends BlacksmithWindowBaseV2 {
 
         // we will append more specific context later in the switch.    
         var strPromtGMMindset = "You are a wise dungeon master playing Dungeons and Dragons 5e. You are tasked to build an immersive narrative with engaging descriptions, facts, stats, and various specific details. Provide a vivid descriptions and details that captures the imagination of players. Be creative, witty, and engaging. Do no suggest a location or area if it is not provided.";
-        strPromtGMMindset += "\n\nThe results will be returned formatted in simple HTML with the details separated by titles where appropriate. Headings and Titles should be h4 tags. Only use tables for number, stats, or other tabular data. Never put sentences in tables.";
+        strPromtGMMindset += "\n\n" + BASE_PROMPT_TEMPLATE.htmlFormatting;
+        strPromtGMMindset += "\n\nThe results will be returned formatted in simple HTML. Use <p> for paragraphs—do not use <br> or <br><br> to separate text blocks. Use <h4> or <h5> for headings. Use <b> for bold. Use <ul><li> for bullet lists. Use <table> only for tabular data. Never put sentences in tables.";
 
 
 
@@ -2593,9 +2596,7 @@ Consider both mechanical effectiveness and narrative potential. When responding,
 
 Please go beyond listing spells or stats—offer strategic reasoning, trade-offs, and alternative approaches. Ask clarifying questions if needed.
 
-Please format the response using h4 tags for headings, bolding keywords, lists where appropriate, and basic tables when neeeded. 
-
-Break the output into a minimum of these sections using h4 headings: Guidance Overview, Combat Readiness, Roleplay Strategies, Build Optimization Suggestions, any other sections as needed and end with Quick Reference Summary as a bulleted list or table.`;
+Please format the response using <p> for paragraphs (not <br> or <br><br>), <h4> or <h5> for headings, <b> for bold, <ul><li> for bullet lists. No inline styles. Use <table> only for tabular data. Break the output into a minimum of these sections using h4 headings: Guidance Overview, Combat Readiness, Roleplay Strategies, Build Optimization Suggestions, any other sections as needed and end with Quick Reference Summary as a bulleted list or table.`;
                         
                         // Build the prompt using the form data we collected earlier
                         strFinalPrompt = `${expertDMPrompt}\n\nCharacter Details:\n${inputCharacterData}\n\nGuidance Requested:\n${inputCharacterGuidance}`;
