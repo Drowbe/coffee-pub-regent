@@ -73,6 +73,21 @@
     border-radius: 1px;
     border: 1px solid #2b2b2b;
     background-color: #f6f1ed;
+    color: #1a1a1a;
+}
+
+/* Ensure select dropdown is readable (closed and open) */
+#coffee-pub-regent-wrapper .workspace-section select {
+    color: #e0e0e0;
+}
+#coffee-pub-regent-wrapper .workspace-section select option {
+    color: #1a1a1a;
+    background-color: #f6f1ed;
+}
+#coffee-pub-regent-wrapper .workspace-section select option:checked,
+#coffee-pub-regent-wrapper .workspace-section select option:hover {
+    background-color: #e0e8f0;
+    color: #1a1a1a;
 }
 
 #coffee-pub-regent-wrapper .workspace-section .tokens-container {

@@ -277,39 +277,31 @@ export class BlacksmithWindowQuery extends BlacksmithWindowBaseV2 {
     // ************************************
 
     constructor(options = {}, mode = 'default') {
-        // Call the parent constructor first
+        // Resolve initial workspace from mode or saved last-opened (default: SRD Lookup) — no `this` before super()
+        let initialWorkspace = options.workspaceId;
+        if (initialWorkspace === undefined) {
+            if (mode === 'encounter') initialWorkspace = 'encounter';
+            else if (mode === 'assistant') initialWorkspace = 'assistant';
+            else if (mode === 'narrative') initialWorkspace = 'narrative';
+            else if (mode === 'character') initialWorkspace = 'character';
+            else if (mode === 'lookup') initialWorkspace = 'lookup';
+            else initialWorkspace = (typeof game !== 'undefined' && game.settings?.get?.(MODULE.ID, 'lastOpenedWorkspace')) || 'lookup';
+        }
+        const showWorkspace = ['encounter', 'assistant', 'narrative', 'character', 'lookup'].includes(initialWorkspace);
+
         super(options);
-        
-        // Set the workspace ID
-        this.workspaceId = options.workspaceId || 'default';
+
+        this.workspaceId = initialWorkspace;
+        this.showWorkspace = showWorkspace;
+        this.lastActiveWorkspace = initialWorkspace;
         this.messages = [];
 
-        
-        // Set workspaceId based on mode
-        if (mode === 'encounter') {
-            this.workspaceId = 'encounter';
-            this.showWorkspace = true; 
-        } else if (mode === 'assistant') {
-            this.workspaceId = 'assistant';
-            this.showWorkspace = true; 
-        } else if (mode === 'narrative') {
-            this.workspaceId = 'narrative';
-            this.showWorkspace = true; 
-        } else if (mode === 'character') {
-            this.workspaceId = 'character';
-            this.showWorkspace = true; 
-        } else if (mode === 'lookup') {
-            this.workspaceId = 'lookup';
-            this.showWorkspace = true; 
-        } else {
-            this.workspaceId = 'lookup'; // Default to 'lookup' for any other mode
-            this.showWorkspace = false;
+        // Restore saved window position/size so we don't overwrite in initialize
+        const bounds = typeof game !== 'undefined' && game.settings?.get?.(MODULE.ID, 'regentWindowBounds');
+        this._restoredBounds = !!(bounds && typeof bounds.width === 'number' && bounds.width > 0);
+        if (this._restoredBounds) {
+            this.position = foundry.utils.mergeObject(this.position ?? {}, bounds);
         }
-        
-        // Store the last active workspace
-        this.lastActiveWorkspace = this.workspaceId;
-        
-
     }
 
     /**
@@ -367,9 +359,23 @@ export class BlacksmithWindowQuery extends BlacksmithWindowBaseV2 {
     // ** FUNCTION close
     // ************************************
 
-    async close(options={}) {
-        // Clean up any registered hooks
+    async close(options = {}) {
         TokenHandler.unregisterTokenHooks();
+        try {
+            game.settings.set(MODULE.ID, 'lastOpenedWorkspace', this.workspaceId);
+            const win = this.element?.closest?.('.window') ?? document.getElementById(this.id)?.closest?.('.window');
+            if (win) {
+                const rect = win.getBoundingClientRect();
+                if (rect.width > 0 && rect.height > 0) {
+                    game.settings.set(MODULE.ID, 'regentWindowBounds', {
+                        left: rect.left,
+                        top: rect.top,
+                        width: rect.width,
+                        height: rect.height
+                    });
+                }
+            }
+        } catch (_) { /* ignore */ }
         return super.close(options);
     }
 
@@ -389,13 +395,15 @@ export class BlacksmithWindowQuery extends BlacksmithWindowBaseV2 {
         if (windowElement) {
             windowElement.classList.add('has-workspace');
         }
-        const baseWidth = 600;
-        const workspaceWidth = 400;
-        const padding = 40;
-        const expandedWidth = baseWidth + workspaceWidth + padding;
-        this.position.width = expandedWidth;
-        if (windowElement) {
-            windowElement.style.width = `${expandedWidth}px`;
+        if (!this._restoredBounds) {
+            const baseWidth = 600;
+            const workspaceWidth = 400;
+            const padding = 40;
+            const expandedWidth = baseWidth + workspaceWidth + padding;
+            this.position.width = expandedWidth;
+            if (windowElement) {
+                windowElement.style.width = `${expandedWidth}px`;
+            }
         }
 
         this.switchWorkspace(html, `regent-query-workspace-${this.workspaceId}`);
@@ -1087,6 +1095,9 @@ export class BlacksmithWindowQuery extends BlacksmithWindowBaseV2 {
         this.workspaceId = workspaceId.replace('regent-query-workspace-', '');
         this.lastActiveWorkspace = this.workspaceId;
 
+        try {
+            game.settings.set(MODULE.ID, 'lastOpenedWorkspace', this.workspaceId);
+        } catch (_) { /* settings may not be ready */ }
 
         // First unregister any existing hooks
         TokenHandler.unregisterTokenHooks();

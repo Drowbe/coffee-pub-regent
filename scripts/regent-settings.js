@@ -192,4 +192,16 @@ export function registerRegentSettings(macroChoicesFromApi = null, chatCardTheme
         hint: MODULE.ID + '.narrativeDefaultEncounterDetails-Hint',
         scope: 'world', config: false, type: String, default: ''
     });
+
+    // Regent window state (position/size and last workspace; config: false)
+    game.settings.register(MODULE.ID, 'lastOpenedWorkspace', {
+        name: MODULE.ID + '.lastOpenedWorkspace-Label',
+        hint: 'Last active workspace tab (SRD Lookup, Narrative, etc.).',
+        scope: 'world', config: false, type: String, default: 'lookup'
+    });
+    game.settings.register(MODULE.ID, 'regentWindowBounds', {
+        name: MODULE.ID + '.regentWindowBounds-Label',
+        hint: 'Last window position and size.',
+        scope: 'world', config: false, type: Object, default: {}
+    });
 }
