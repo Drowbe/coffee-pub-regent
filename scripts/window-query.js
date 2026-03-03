@@ -6,7 +6,6 @@ import { MODULE, REGENT } from './const.js';
 import { postConsoleAndNotification } from './api-core.js';
 import { playSound, trimString } from '/modules/coffee-pub-blacksmith/scripts/api-core.js';
 import { SocketManager } from '/modules/coffee-pub-blacksmith/scripts/manager-sockets.js';
-import { SkillCheckDialog } from '/modules/coffee-pub-blacksmith/scripts/window-skillcheck.js';
 import { getCachedTemplate } from './regent.js';
 import { BlacksmithWindowBaseV2 } from '/modules/coffee-pub-blacksmith/scripts/window-base-v2.js';
 import { registerEncounterWorksheetGlobals } from './regent-encounter-worksheet.js';
@@ -81,13 +80,11 @@ const addEventListeners = () => {
 
     workspaces.forEach(workspace => {
         const skill = document.getElementById(`optionSkill-${workspace}`);
-        const dice = document.getElementById(`optionDiceType-${workspace}`);
         const roll = document.getElementById(`inputDiceValue-${workspace}`);
-        const details = document.getElementById(`inputContextDetails-${workspace}`);
 
-        if (skill && dice && roll) {
+        if (skill && roll) {
             skill.addEventListener('change', () => {
-    
+                const details = document.getElementById(`inputContextDetails-${workspace}`);
                 // Get the skill description from CONFIG.DND5E.skills
                 const skillKey = Object.entries(CONFIG.DND5E.skills).find(([k, s]) => 
                     game.i18n.localize(s.label) === skill.value
@@ -99,10 +96,6 @@ const addEventListeners = () => {
                     const abilityName = game.i18n.localize(ability);
                     details.value = `${skill.value} (${abilityName}): ${game.i18n.localize(skillData.reference)}`;
                 }
-            });
-
-            dice.addEventListener('change', () => {
-    
             });
 
             roll.addEventListener('change', () => {
@@ -521,6 +514,14 @@ export class BlacksmithWindowQuery extends BlacksmithWindowBaseV2 {
                     }
                     return;
                 }
+                const rollDiceBtn = e.target.closest('.roll-dice-button');
+                if (rollDiceBtn) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const zoneId = (rollDiceBtn.id || '').split('-').pop();
+                    if (zoneId) w._handleRequestRollClick(zoneId);
+                    return;
+                }
             }, true);
         }
         if (!BlacksmithWindowQuery._workspaceDelegationAttached) {
@@ -827,46 +828,36 @@ export class BlacksmithWindowQuery extends BlacksmithWindowBaseV2 {
             if (target) {
                 event.preventDefault();
                 const zoneId = (target.id || '').split('-').pop();
-                if (zoneId) this._handleRollDiceClick(zoneId);
+                if (zoneId) this._handleRequestRollClick(zoneId);
             }
         });
     }
 
-    async _handleRollDiceClick(id) {
+    /**
+     * Open Blacksmith Request a Roll dialog; on roll complete, fill the dice value input for this workspace.
+     * Uses skill from optionSkill-{id}; result is written to inputDiceValue-{id}.
+     */
+    _handleRequestRollClick(id) {
         const skillSelect = document.getElementById(`optionSkill-${id}`);
         const diceValueInput = document.getElementById(`inputDiceValue-${id}`);
         if (!skillSelect) return;
-
-        const skillName = skillSelect.value;
-        
-        const selectedActors = canvas.tokens.controlled
-            .filter(t => t.actor)
-            .map(t => ({
-                id: t.actor.id,
-                name: t.actor.name
-            }));
-
-        // Find the skill ID from the skill name
-        const skillId = Object.entries(CONFIG.DND5E.skills).find(([id, data]) => 
-            game.i18n.localize(data.label) === skillName
-        )?.[0];
-
-        if (!skillId) {
-            ui.notifications.warn("Could not find matching skill ID for " + skillName);
+        const skillDisplayName = skillSelect.value;
+        const initialValue = String(skillDisplayName).toLowerCase().replace(/\s+/g, '_');
+        const api = game.modules.get('coffee-pub-blacksmith')?.api;
+        if (!api?.openRequestRollDialog) {
+            ui.notifications.warn('Blacksmith Request a Roll API not available.');
             return;
         }
-
-        // Create and render dialog with initial skill and callback
-        const dialog = new SkillCheckDialog({
-            actors: selectedActors,
-            initialSkill: skillId,
-            onRollComplete: (result) => {
-                if (diceValueInput) {
-                    diceValueInput.value = result;
-                }
+        api.openRequestRollDialog({
+            title: 'Regent: Skill Check',
+            initialType: 'skill',
+            initialValue,
+            initialFilter: 'selected',
+            onRollComplete: (payload) => {
+                const total = payload?.result?.total ?? payload?.result?.roll ?? payload?.result;
+                if (diceValueInput && total != null) diceValueInput.value = String(total);
             }
         });
-        dialog.render(true);
     }
 
     /** Panel drop zone handler (encounters, monster, party, npcs). Used by document-level drop delegation. */
@@ -1545,13 +1536,15 @@ export class BlacksmithWindowQuery extends BlacksmithWindowBaseV2 {
         if (!button) return;
         const messageId = button.getAttribute('data-message-id');
         const contentElement = document.querySelector(`.regent-message-wrapper[data-message-id="${messageId}"]`);
-        const content = contentElement ? contentElement.innerHTML : null;
+        const rawContent = contentElement ? (contentElement.querySelector('.regent-message-content')?.innerHTML ?? contentElement.innerHTML) : null;
         postConsoleAndNotification(MODULE.NAME, "Content Element:", contentElement, true, false);
-        postConsoleAndNotification(MODULE.NAME, "Content:", content, true, false);
+        postConsoleAndNotification(MODULE.NAME, "Content:", rawContent, true, false);
         playSound(window.COFFEEPUB?.SOUNDPOP02, window.COFFEEPUB?.SOUNDVOLUMESOFT);
-        if (content && content.trim() !== "") {
+        if (rawContent && rawContent.trim() !== "") {
+            const themeClassName = game.settings.get(MODULE.ID, 'chatCardTheme') || 'theme-default';
+            const cardHtml = `<span style="visibility: hidden">coffeepub-hide-header</span><div class="blacksmith-card ${themeClassName}"><div class="card-header"><i class="fas fa-crystal-ball"></i> Regent</div><div class="section-content">${rawContent}</div></div>`;
             await ChatMessage.create({
-                content: content,
+                content: cardHtml,
                 speaker: ChatMessage.getSpeaker()
             });
         } else {
@@ -1671,7 +1664,6 @@ export class BlacksmithWindowQuery extends BlacksmithWindowBaseV2 {
         // Roll
         const blnSkillRoll = form.querySelector('#blnSkillRoll-' + id)?.checked ?? null;
         const optionSkill = form.querySelector('#optionSkill-' + id)?.value ?? null;
-        const optionDiceType = form.querySelector('#optionDiceType-' + id)?.value ?? null;
         const inputDiceValue = form.querySelector('#inputDiceValue-' + id)?.value ?? null;
         // Details
         const optionType = form.querySelector('#optionType-' + id)?.value ?? null;
@@ -1770,7 +1762,7 @@ export class BlacksmithWindowQuery extends BlacksmithWindowBaseV2 {
                 break;
             case "assistant":
                 // SKILL CHECK
-                isWorkspaceSet = blnSkillRoll || optionSkill || optionDiceType || inputDiceValue || optionType ||inputContextName;
+                isWorkspaceSet = blnSkillRoll || optionSkill || inputDiceValue || optionType ||inputContextName;
                 break;
             case "character":
                 // CHARACTER
@@ -1851,7 +1843,7 @@ export class BlacksmithWindowQuery extends BlacksmithWindowBaseV2 {
         // Skill Check Roll
         var strPromtSkillRoll = ""; 
         if (blnSkillRoll) {
-            strPromtSkillRoll = `\n\nEverything you generate should be based on this skill check. They rolled a  ${inputDiceValue} against the skill '${optionSkill}' using a ${optionDiceType}. A low roll should give them very few details. A high roll should give them a lot of details with many specifics. If they roll the highest number on the dice they got a critical and know everything, especially tactics or secrets. Since the details are based on this roll, you should lead into the narrative with that context, referencing their roll of a DC${inputDiceValue} ${optionSkill} check and how it impacts what they know about things.`;
+            strPromtSkillRoll = `\n\nEverything you generate should be based on this skill check. They rolled ${inputDiceValue} on a ${optionSkill} check. A low roll should give them very few details. A high roll should give them a lot of details with many specifics. If they roll the highest number on the dice they got a critical and know everything, especially tactics or secrets. Since the details are based on this roll, you should lead into the narrative with that context, referencing their roll of ${inputDiceValue} on the ${optionSkill} check and how it impacts what they know about things.`;
         }
         // build the final prompt
         strPromptSkillCheck = strPromptType + strPromptName + inputContextDetails + strPromtSkillRoll;
@@ -2542,7 +2534,6 @@ Key encounter requirements:`;
                         strGmContext += addTableRow('<b>SKILL CHECK</b>', null);
                         strGmContext += addTableRow('Roll Skill', blnSkillRoll);
                         strGmContext += addTableRow('Skill', optionSkill);
-                        strGmContext += addTableRow('Dice Type', optionDiceType);
                         strGmContext += addTableRow('Dice Value', inputDiceValue);
                         strGmContext += addTableRow('Lookup Type', optionType);
                         strGmContext += addTableRow('Name', inputContextName);

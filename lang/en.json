@@ -16,6 +16,8 @@
     "openAIContextLength-Hint": "Number of prior messages to send (0 = no history).",
     "openAITemperature-Label": "Temperature",
     "openAITemperature-Hint": "Response randomness (0-2).",
+    "chatCardTheme-Label": "Chat Card Theme",
+    "chatCardTheme-Hint": "Theme for Regent messages sent to chat (Blacksmith card styles).",
     "narrativeUseCookies-Label": "Narrative Use Cookies",
     "narrativeUseCookies-Hint": "Use cookies for narrative worksheet."
   }

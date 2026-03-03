@@ -26,11 +26,10 @@ function getMacroChoicesLocal() {
 
 /**
  * Register Regent settings.
- * Macro dropdown: use Blacksmith API (arrMacroChoices) when provided; otherwise build from game.macros.
- * Game system dropdown: Regent-owned GAME_SYSTEM_CHOICES only.
- * @param {Object|null} [macroChoicesFromApi] - Optional macro choices from BlacksmithAPI.get().BLACKSMITH.arrMacroChoices
+ * @param {Object|null} [macroChoicesFromApi] - Optional macro choices from BlacksmithAPI
+ * @param {Object} [chatCardThemeChoices] - Chat card theme choices (CSS class -> name) from chatCards.getThemeChoicesWithClassNames('card')
  */
-export function registerRegentSettings(macroChoicesFromApi = null) {
+export function registerRegentSettings(macroChoicesFromApi = null, chatCardThemeChoices = { 'theme-default': 'Default' }) {
     const macroChoices = macroChoicesFromApi ?? getMacroChoicesLocal();
 
     game.settings.register(MODULE.ID, 'openAIMacro', {
@@ -103,7 +102,23 @@ export function registerRegentSettings(macroChoicesFromApi = null) {
         range: { min: 0, max: 2, step: 0.1 },
         group: AI_GROUP
     });
+    game.settings.register(MODULE.ID, 'chatCardTheme', {
+        name: MODULE.ID + '.chatCardTheme-Label',
+        hint: 'Theme for Regent messages sent to chat (Blacksmith Chat Cards).',
+        scope: 'world', config: true, requiresReload: false,
+        type: String,
+        default: 'theme-default',
+        choices: chatCardThemeChoices,
+        group: AI_GROUP
+    });
     game.settings.register(MODULE.ID, 'narrativeUseCookies', {
+        name: MODULE.ID + '.narrativeUseCookies-Label',
+        hint: MODULE.ID + '.narrativeUseCookies-Hint',
+        scope: 'world', config: true, requiresReload: false,
+        type: Boolean, default: false,
+        group: AI_GROUP
+    });
+    game.settings.register(MODULE.ID, 'openAIContextLength', {
         name: MODULE.ID + '.narrativeUseCookies-Label',
         hint: MODULE.ID + '.narrativeUseCookies-Hint',
         scope: 'world', config: true, requiresReload: false,

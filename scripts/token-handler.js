@@ -38,17 +38,15 @@ export class TokenHandler {
         const biographyInput = document.querySelector(`#inputContextBiography-${id}`);
         const skillCheck = document.querySelector(`#blnSkillRoll-${id}`);
         const skillSelect = document.querySelector(`#optionSkill-${id}`);
-        const diceSelect = document.querySelector(`#optionDiceType-${id}`);
 
-        if (!typeSelect || !nameInput || !detailsInput || !biographyInput || !skillCheck || !skillSelect || !diceSelect) {
+        if (!typeSelect || !nameInput || !detailsInput || !biographyInput || !skillCheck || !skillSelect) {
             const missingElements = {
                 typeSelect: !!typeSelect,
                 nameInput: !!nameInput,
                 detailsInput: !!detailsInput,
                 biographyInput: !!biographyInput,
                 skillCheck: !!skillCheck,
-                skillSelect: !!skillSelect,
-                diceSelect: !!diceSelect
+                skillSelect: !!skillSelect
             };
             postConsoleAndNotification(MODULE.NAME, "Missing form elements", JSON.stringify(missingElements), true, false);
             return;
@@ -132,7 +130,6 @@ export class TokenHandler {
         biographyInput.value = data.biography || '';
         skillCheck.checked = true;
         skillSelect.value = selectedSkill;
-        diceSelect.value = '1d20';
 
         postConsoleAndNotification(MODULE.NAME, "Form updated successfully", `Token: ${token.name}`, true, false);
     }
@@ -443,9 +440,8 @@ export class TokenHandler {
         const biographyInput = document.querySelector(`#inputContextBiography-${id}`);
         const skillCheck = document.querySelector(`#blnSkillRoll-${id}`);
         const skillSelect = document.querySelector(`#optionSkill-${id}`);
-        const diceSelect = document.querySelector(`#optionDiceType-${id}`);
 
-        if (!typeSelect || !nameInput || !detailsInput || !biographyInput || !skillCheck || !skillSelect || !diceSelect) {
+        if (!typeSelect || !nameInput || !detailsInput || !biographyInput || !skillCheck || !skillSelect) {
             postConsoleAndNotification(MODULE.NAME, "Missing form elements for item update", "", true, false);
             return;
         }
@@ -455,7 +451,6 @@ export class TokenHandler {
         detailsInput.value = data.details;
         biographyInput.value = data.description || '';
         skillCheck.checked = true;
-        diceSelect.value = '1d20';
 
         let selectedSkill = 'Investigation';
         const item = data.originalItem;

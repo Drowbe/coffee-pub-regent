@@ -248,6 +248,53 @@
     align-items: left !important;
 }
 
+/* Roll Details: checkbox, then [ dropdown ] [ input ] [ button ] on one line */
+#coffee-pub-regent-wrapper .regent-roll-details-row {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+}
+
+/* Override .workspace-section width:100% so row stays on one line */
+#coffee-pub-regent-wrapper .regent-roll-details-row .regent-roll-details-checkbox {
+    display: inline-flex;
+    align-items: center;
+    flex: 0 0 auto;
+    white-space: nowrap;
+    margin: 0;
+}
+
+#coffee-pub-regent-wrapper .regent-roll-details-row .regent-roll-details-skill {
+    flex: 1 1 auto;
+    min-width: 100px;
+    width: auto !important;
+    max-width: none;
+}
+
+#coffee-pub-regent-wrapper .regent-roll-details-row .regent-roll-details-result {
+    flex: 0 0 auto;
+    width: 2.5em !important;
+    min-width: 2.5em;
+    max-width: 2.5em !important;
+    text-align: center;
+    box-sizing: border-box;
+}
+
+#coffee-pub-regent-wrapper .regent-roll-details-row .regent-roll-details-d20 {
+    flex: 0 0 auto;
+    padding: 6px 10px;
+}
+
+/* Checkbox below the row */
+#coffee-pub-regent-wrapper .workspace-section-content > .regent-roll-details-checkbox {
+    display: block;
+    margin-top: 8px;
+    margin-bottom: 0;
+}
+
 #coffee-pub-regent-wrapper .form-options label,
 #coffee-pub-regent-wrapper .form-options select,
 #coffee-pub-regent-wrapper .form-options input,

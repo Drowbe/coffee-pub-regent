@@ -16,12 +16,13 @@ async function onReady() {
         regentModule.api.openai = OpenAIAPI;
     }
 
-    // Get Blacksmith API first so we can use it for macro choices (API-only access)
+    // Get Blacksmith API first so we can use it for macro choices and chat card themes
     const blacksmithApi = await BlacksmithAPI.get();
     const macroChoices = blacksmithApi?.BLACKSMITH?.arrMacroChoices ?? null;
+    const chatCardThemeChoices = blacksmithApi?.chatCards?.getThemeChoicesWithClassNames?.('card') ?? { 'theme-default': 'Default' };
 
-    // Register Regent settings (macro dropdown uses API when available; game systems are Regent-owned)
-    registerRegentSettings(macroChoices);
+    // Register Regent settings (macro dropdown and chat card theme use API when available)
+    registerRegentSettings(macroChoices, chatCardThemeChoices);
 
     await registerWindowQueryPartials();
     OpenAIAPI.initializeMemory();
