@@ -1,15 +1,28 @@
 # Coffee Pub Regent
 
-Optional AI tools for the Coffee Pub ecosystem. Provides "Consult the Regent" and worksheets (Lookup, Character, Assistant, Encounter, Narrative) using OpenAI.
+Optional AI tools for the Coffee Pub ecosystem. **Consult the Regent** and worksheets (Lookup, Character, Assistant, Encounter, Narrative) powered by OpenAI. Requires **Coffee Pub Blacksmith**.
 
-**Requires:** Coffee Pub Blacksmith (and its dependencies). Install and enable Blacksmith first.
+## About
 
-## Installation
+Coffee Pub Regent adds AI-powered tools to Foundry VTT via the Blacksmith Utilities toolbar: ask the Regent questions, look up SRD content, build characters, get assistant feedback, design encounters, and generate narrative content. All AI features live in this optional module; Blacksmith provides the shared UI and integration. Supports Foundry v13 and D&D 5e 5.5+.
 
-1. Install **Coffee Pub Blacksmith** and enable it in your world.
-2. Install Regent like any other Foundry module:
-   - Place the `coffee-pub-regent` folder in your Foundry **Data/modules/** directory (sibling to `coffee-pub-blacksmith`).
-   - Or install via manifest/package manager when available.
+## Download & Installation
+
+**Requires:** [Coffee Pub Blacksmith](https://github.com/Drowbe/coffee-pub-blacksmith/releases/latest/download/module.json) — install and enable it first.
+
+### Install from Foundry (recommended)
+
+1. In Foundry, go to **Add-on Modules** → **Install Module**.
+2. Click **Install Module** and paste this manifest URL:
+   ```
+   https://github.com/Drowbe/coffee-pub-regent/releases/latest/download/module.json
+   ```
+3. Install, then enable **Coffee Pub Regent** in **Configure Settings → Module Settings**.
+
+### Manual install
+
+1. Download the latest release: [coffee-pub-regent.zip](https://github.com/Drowbe/coffee-pub-regent/releases/latest/download/coffee-pub-regent.zip).
+2. Extract the `coffee-pub-regent` folder into your Foundry **Data/modules/** directory (alongside `coffee-pub-blacksmith`).
 3. Enable **Coffee Pub Regent** in **Configure Settings → Module Settings**.
 
 ## Configuration
