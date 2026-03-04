@@ -3,6 +3,13 @@
   "title": "Coffee Pub Regent",
   "description": "Optional AI tools for Coffee Pub: Consult the Regent, worksheets (Lookup, Character, Assistant, Encounter, Narrative). Requires Blacksmith.",
   "version": "13.0.0",
+  "manifest": "https://github.com/Drowbe/coffee-pub-regent/releases/latest/download/module.json",
+  "download": "https://github.com/Drowbe/coffee-pub-regent/releases/latest/download/coffee-pub-blacksmith.zip",
+  "url": "https://github.com/Drowbe/coffee-pub-regent",
+  "bugs": "https://github.com/Drowbe/coffee-pub-regent/issues",
+  "readme": "README.md",
+  "changelog": "CHANGELOG.md",
+  "license": "LICENSE",
   "compatibility": {
     "minimum": "13",
     "verified": "13",
@@ -36,8 +43,5 @@
   "authors": [
     { "name": "COFFEE PUB", "discord": "drowbe", "url": "https://github.com/Drowbe", "flags": { "isMaintainer": true } },
     { "name": "Drowbe", "discord": "drowbe", "url": "https://willhavebeen.com", "flags": { "isMaintainer": true } }
-  ],
-  "url": "https://github.com/Drowbe/coffee-pub-blacksmith",
-  "license": "LICENSE",
-  "readme": "README.md"
+  ]
 }
