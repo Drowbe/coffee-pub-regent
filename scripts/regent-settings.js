@@ -6,6 +6,18 @@ import { MODULE } from './const.js';
 
 const AI_GROUP = { name: "regent-ai", label: "Regent (AI)", hint: "OpenAI and Regent AI tools." };
 
+function registerHeader(id, labelKey, hintKey, level = 'H2', group = AI_GROUP, scope = 'world') {
+    game.settings.register(MODULE.ID, `heading${level}${id}`, {
+        name: MODULE.ID + `.${labelKey}`,
+        hint: MODULE.ID + `.${hintKey}`,
+        scope,
+        config: true,
+        default: "",
+        type: String,
+        group
+    });
+}
+
 /** Game system choices for prompt optimization (Regent-owned, not from Blacksmith). */
 const GAME_SYSTEM_CHOICES = {
     generic: 'Generic tabletop RPG',
@@ -31,6 +43,9 @@ function getMacroChoicesLocal() {
  */
 export function registerRegentSettings(macroChoicesFromApi = null, chatCardThemeChoices = { 'theme-default': 'Default' }) {
     const macroChoices = macroChoicesFromApi ?? getMacroChoicesLocal();
+
+    registerHeader('AISettings', 'headingH1AISettings-Label', 'headingH1AISettings-Hint', 'H1', AI_GROUP);
+    registerHeader('AIGeneral', 'headingH2AIGeneral-Label', 'headingH2AIGeneral-Hint', 'H2', AI_GROUP);
 
     game.settings.register(MODULE.ID, 'openAIMacro', {
         name: MODULE.ID + '.openAIMacro-Label',
@@ -111,6 +126,10 @@ export function registerRegentSettings(macroChoicesFromApi = null, chatCardTheme
         choices: chatCardThemeChoices,
         group: AI_GROUP
     });
+    registerHeader('NarrativeGenerator', 'headingH2NarrativeGenerator-Label', 'headingH2NarrativeGenerator-Hint', 'H2', AI_GROUP);
+    registerHeader('NarrativeConfiguration', 'headingH3NarrativeConfiguration-Label', 'headingH3NarrativeConfiguration-Hint', 'H3', AI_GROUP);
+
+    // Narrative worksheet defaults
     game.settings.register(MODULE.ID, 'narrativeUseCookies', {
         name: MODULE.ID + '.narrativeUseCookies-Label',
         hint: MODULE.ID + '.narrativeUseCookies-Hint',
@@ -118,25 +137,46 @@ export function registerRegentSettings(macroChoicesFromApi = null, chatCardTheme
         type: Boolean, default: false,
         group: AI_GROUP
     });
-    game.settings.register(MODULE.ID, 'openAIContextLength', {
-        name: MODULE.ID + '.narrativeUseCookies-Label',
-        hint: MODULE.ID + '.narrativeUseCookies-Hint',
-        scope: 'world', config: true, requiresReload: false,
-        type: Boolean, default: false,
-        group: AI_GROUP
-    });
-
-    // Narrative worksheet defaults (stored for cookie fallbacks; config: false to keep UI minimal)
-    game.settings.register(MODULE.ID, 'defaultNarrativeFolder', {
-        name: MODULE.ID + '.defaultNarrativeFolder-Label',
-        hint: MODULE.ID + '.defaultNarrativeFolder-Hint',
-        scope: 'world', config: false, type: String, default: ''
-    });
     game.settings.register(MODULE.ID, 'defaultJournalPageTitle', {
         name: MODULE.ID + '.defaultJournalPageTitle-Label',
         hint: MODULE.ID + '.defaultJournalPageTitle-Hint',
-        scope: 'world', config: false, type: String, default: ''
+        scope: 'world', config: true, requiresReload: false, type: String, default: '',
+        group: AI_GROUP
     });
+
+    registerHeader('NarrativeOptions', 'headingH3NarrativeOptions-Label', 'headingH3NarrativeOptions-Hint', 'H3', AI_GROUP);
+
+    game.settings.register(MODULE.ID, 'narrativeDefaultIncludeEncounter', {
+        name: MODULE.ID + '.narrativeDefaultIncludeEncounter-Label',
+        hint: MODULE.ID + '.narrativeDefaultIncludeEncounter-Hint',
+        scope: 'world', config: true, requiresReload: false, type: Boolean, default: false,
+        group: AI_GROUP
+    });
+    game.settings.register(MODULE.ID, 'narrativeDefaultIncludeTreasure', {
+        name: MODULE.ID + '.narrativeDefaultIncludeTreasure-Label',
+        hint: MODULE.ID + '.narrativeDefaultIncludeTreasure-Hint',
+        scope: 'world', config: true, requiresReload: false, type: Boolean, default: false,
+        group: AI_GROUP
+    });
+    game.settings.register(MODULE.ID, 'narrativeDefaultXP', {
+        name: MODULE.ID + '.narrativeDefaultXP-Label',
+        hint: MODULE.ID + '.narrativeDefaultXP-Hint',
+        scope: 'world', config: true, requiresReload: false, type: String, default: '',
+        group: AI_GROUP
+    });
+    game.settings.register(MODULE.ID, 'narrativeDefaultTreasureDetails', {
+        name: MODULE.ID + '.narrativeDefaultTreasureDetails-Label',
+        hint: MODULE.ID + '.narrativeDefaultTreasureDetails-Hint',
+        scope: 'world', config: true, requiresReload: false, type: String, default: '',
+        group: AI_GROUP
+    });
+    game.settings.register(MODULE.ID, 'narrativeDefaultEncounterDetails', {
+        name: MODULE.ID + '.narrativeDefaultEncounterDetails-Label',
+        hint: MODULE.ID + '.narrativeDefaultEncounterDetails-Hint',
+        scope: 'world', config: true, requiresReload: false, type: String, default: '',
+        group: AI_GROUP
+    });
+
     game.settings.register(MODULE.ID, 'defaultCampaignRealm', {
         name: MODULE.ID + '.defaultCampaignRealm-Label',
         hint: MODULE.ID + '.defaultCampaignRealm-Hint',
@@ -147,49 +187,14 @@ export function registerRegentSettings(macroChoicesFromApi = null, chatCardTheme
         hint: MODULE.ID + '.defaultCampaignRegion-Hint',
         scope: 'world', config: false, type: String, default: ''
     });
-    game.settings.register(MODULE.ID, 'defaultCampaignArea', {
-        name: MODULE.ID + '.defaultCampaignArea-Label',
-        hint: MODULE.ID + '.defaultCampaignArea-Hint',
-        scope: 'world', config: false, type: String, default: ''
-    });
     game.settings.register(MODULE.ID, 'defaultCampaignSite', {
         name: MODULE.ID + '.defaultCampaignSite-Label',
         hint: MODULE.ID + '.defaultCampaignSite-Hint',
         scope: 'world', config: false, type: String, default: ''
     });
-    game.settings.register(MODULE.ID, 'narrativeDefaultCardImage', {
-        name: MODULE.ID + '.narrativeDefaultCardImage-Label',
-        hint: MODULE.ID + '.narrativeDefaultCardImage-Hint',
-        scope: 'world', config: false, type: String, default: '', choices: {}
-    });
-    game.settings.register(MODULE.ID, 'narrativeDefaultImagePath', {
-        name: MODULE.ID + '.narrativeDefaultImagePath-Label',
-        hint: MODULE.ID + '.narrativeDefaultImagePath-Hint',
-        scope: 'world', config: false, type: String, default: ''
-    });
-    game.settings.register(MODULE.ID, 'narrativeDefaultIncludeEncounter', {
-        name: MODULE.ID + '.narrativeDefaultIncludeEncounter-Label',
-        hint: MODULE.ID + '.narrativeDefaultIncludeEncounter-Hint',
-        scope: 'world', config: false, type: Boolean, default: false
-    });
-    game.settings.register(MODULE.ID, 'narrativeDefaultIncludeTreasure', {
-        name: MODULE.ID + '.narrativeDefaultIncludeTreasure-Label',
-        hint: MODULE.ID + '.narrativeDefaultIncludeTreasure-Hint',
-        scope: 'world', config: false, type: Boolean, default: false
-    });
-    game.settings.register(MODULE.ID, 'narrativeDefaultXP', {
-        name: MODULE.ID + '.narrativeDefaultXP-Label',
-        hint: MODULE.ID + '.narrativeDefaultXP-Hint',
-        scope: 'world', config: false, type: String, default: ''
-    });
-    game.settings.register(MODULE.ID, 'narrativeDefaultTreasureDetails', {
-        name: MODULE.ID + '.narrativeDefaultTreasureDetails-Label',
-        hint: MODULE.ID + '.narrativeDefaultTreasureDetails-Hint',
-        scope: 'world', config: false, type: String, default: ''
-    });
-    game.settings.register(MODULE.ID, 'narrativeDefaultEncounterDetails', {
-        name: MODULE.ID + '.narrativeDefaultEncounterDetails-Label',
-        hint: MODULE.ID + '.narrativeDefaultEncounterDetails-Hint',
+    game.settings.register(MODULE.ID, 'defaultCampaignArea', {
+        name: MODULE.ID + '.defaultCampaignArea-Label',
+        hint: MODULE.ID + '.defaultCampaignArea-Hint',
         scope: 'world', config: false, type: String, default: ''
     });
 
