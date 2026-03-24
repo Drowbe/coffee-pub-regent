@@ -38,7 +38,7 @@ function getMacroChoicesLocal() {
 
 /**
  * Register Regent settings.
- * @param {Object|null} [macroChoicesFromApi] - Optional macro choices from BlacksmithAPI
+ * @param {Object|null} [macroChoicesFromApi] - Optional macro choices from `mod.api.BLACKSMITH` (ready hook)
  * @param {Object} [chatCardThemeChoices] - Chat card theme choices (CSS class -> name) from chatCards.getThemeChoicesWithClassNames('card')
  */
 export function registerRegentSettings(macroChoicesFromApi = null, chatCardThemeChoices = { 'theme-default': 'Default' }) {

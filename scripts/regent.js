@@ -6,12 +6,11 @@ import { MODULE, REGENT } from './const.js';
 import { postConsoleAndNotification } from './api-core.js';
 import { OpenAIAPI } from './api-openai.js';
 
-// Optional: use Blacksmith's playSound when available (same repo path)
 async function playSoundSafe(sound, volume = 0.5) {
     try {
-        const core = await import('/modules/coffee-pub-blacksmith/scripts/api-core.js');
-        if (core.playSound && (window.COFFEEPUB?.SOUNDPOP02 || sound)) {
-            core.playSound(sound || window.COFFEEPUB?.SOUNDPOP02, volume ?? window.COFFEEPUB?.SOUNDVOLUMESOFT ?? 0.5);
+        const { playSound } = await import('./blacksmith-bridge.js');
+        if (playSound && (window.COFFEEPUB?.SOUNDPOP02 || sound)) {
+            playSound(sound || window.COFFEEPUB?.SOUNDPOP02, volume ?? window.COFFEEPUB?.SOUNDVOLUMESOFT ?? 0.5);
         }
     } catch (_) {}
 }
@@ -54,9 +53,24 @@ export function generateFormattedDate(format) {
     return `${formattedDate} ${formattedTime}`;
 }
 
+/**
+ * Strip markdown code fences and isolate a `{ ... }` blob so model output still parses when wrapped in ```json.
+ */
+function extractJsonStringForParse(str) {
+    if (str == null || typeof str !== 'string') return str;
+    let s = str.trim();
+    const fence = /^```(?:json)?\s*\n?([\s\S]*?)\n?```\s*$/im;
+    const m = s.match(fence);
+    if (m) s = m[1].trim();
+    if (s.startsWith('{')) return s;
+    const objMatch = s.match(/\{[\s\S]*\}/);
+    return objMatch ? objMatch[0] : s;
+}
+
 export function cleanAndValidateJSON(str) {
     try {
-        const parsed = JSON.parse(str);
+        const extracted = extractJsonStringForParse(str);
+        const parsed = JSON.parse(extracted);
         if (typeof parsed !== 'object' || parsed === null) return { isValid: false };
         const plainTextFields = ['journaltype', 'foldername', 'sceneparent', 'scenearea', 'sceneenvironment', 'scenelocation', 'scenetitle', 'prepencounter', 'contextintro'];
         const cardPlainTextFields = ['cardtitle', 'cardimagetitle', 'cardimage', 'carddescriptionprimary', 'carddescriptionsecondary'];

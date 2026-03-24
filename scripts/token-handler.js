@@ -2,8 +2,7 @@
 // ===== REGENT TOKEN HANDLER (moved from Blacksmith) ================
 // ==================================================================
 import { MODULE } from './const.js';
-import { postConsoleAndNotification } from '/modules/coffee-pub-blacksmith/scripts/api-core.js';
-import { HookManager } from '/modules/coffee-pub-blacksmith/scripts/manager-hooks.js';
+import { postConsoleAndNotification, getHookManager } from './blacksmith-bridge.js';
 
 const REGENT_TEMPLATES = "modules/coffee-pub-regent/templates";
 
@@ -164,6 +163,11 @@ export class TokenHandler {
 
         const workspaceIdClosure = workspaceId;
 
+        const HookManager = getHookManager();
+        if (!HookManager?.registerHook) {
+            postConsoleAndNotification(MODULE.NAME, 'TokenHandler: Blacksmith HookManager not available', '', false, true);
+            return null;
+        }
         this.hookId = HookManager.registerHook({
             name: 'controlToken',
             description: 'Token Handler: Handle token control events for workspace updates',
@@ -192,7 +196,7 @@ export class TokenHandler {
     static unregisterTokenHooks() {
         if (this.hookId !== null) {
             postConsoleAndNotification(MODULE.NAME, "Unregistering token hooks", "", true, false);
-            HookManager.removeCallback(this.hookId);
+            getHookManager()?.removeCallback?.(this.hookId);
             this.hookId = null;
         }
     }

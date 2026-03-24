@@ -4,15 +4,37 @@
 
 import { MODULE, REGENT } from './const.js';
 import { postConsoleAndNotification } from './api-core.js';
-import { playSound, trimString } from '/modules/coffee-pub-blacksmith/scripts/api-core.js';
-import { SocketManager } from '/modules/coffee-pub-blacksmith/scripts/manager-sockets.js';
+import { playSound, trimString, createJournalEntryFromBlacksmith } from './blacksmith-bridge.js';
 import { getCachedTemplate } from './regent.js';
-import { BlacksmithWindowBaseV2 } from '/modules/coffee-pub-blacksmith/scripts/window-base-v2.js';
+import { RegentWindowBaseV2 } from './regent-window-base-v2.js';
 import { registerEncounterWorksheetGlobals } from './regent-encounter-worksheet.js';
 
-// -- COMMON Imports --
-import { createJournalEntry, createHTMLList, buildCompendiumLinkActor } from '/modules/coffee-pub-blacksmith/scripts/common.js';
 import { TokenHandler } from './token-handler.js';
+
+/** Blacksmith core shell (template path only — not a script import). See wiki API: Window. */
+const BLACKSMITH_WINDOW_SHELL = 'modules/coffee-pub-blacksmith/templates/window-template.hbs';
+const REGENT_WINDOW_SHELL = 'modules/coffee-pub-regent/templates/regent-window-shell.hbs';
+
+/**
+ * Use mod.api.BlacksmithWindowBaseV2 or getWindowBaseV2() per Blacksmith Window API — do not import scripts/window-base-v2.js.
+ * If api is not populated yet at module load (e.g. before `ready`), falls back to RegentWindowBaseV2.
+ */
+function resolveWindowQueryBase() {
+    const api = globalThis.game?.modules?.get?.('coffee-pub-blacksmith')?.api;
+    if (!api) return RegentWindowBaseV2;
+    if (typeof api.BlacksmithWindowBaseV2 === 'function') return api.BlacksmithWindowBaseV2;
+    if (typeof api.getWindowBaseV2 === 'function') {
+        try {
+            const C = api.getWindowBaseV2();
+            if (typeof C === 'function') return C;
+        } catch (_) { /* ignore */ }
+    }
+    return RegentWindowBaseV2;
+}
+
+const WindowQueryBase = resolveWindowQueryBase();
+const WindowQueryShellTemplate =
+    WindowQueryBase === RegentWindowBaseV2 ? REGENT_WINDOW_SHELL : BLACKSMITH_WINDOW_SHELL;
 
 // Base template for AI instructions
 const BASE_PROMPT_TEMPLATE = {
@@ -242,10 +264,10 @@ function clearWorksheetTokens(id) {
 // ===== CLASSES ====================================================
 // ================================================================== 
 
-export class BlacksmithWindowQuery extends BlacksmithWindowBaseV2 {
+export class BlacksmithWindowQuery extends WindowQueryBase {
 
     static PARTS = {
-        body: { template: 'modules/coffee-pub-blacksmith/templates/window-template.hbs' }
+        body: { template: WindowQueryShellTemplate }
     };
 
     /** Blacksmith API: data-action buttons in action bar call these. Base class routes via _attachDelegationOnce. */
@@ -1520,7 +1542,7 @@ export class BlacksmithWindowQuery extends BlacksmithWindowBaseV2 {
                 case "NARRATIVE":
                 case "ENCOUNTER":
                     postConsoleAndNotification(MODULE.NAME, "Creating an NARRATIVE or ENCOUNTER journal entry.", "", false, false);
-                    await createJournalEntry(journalData);
+                    await createJournalEntryFromBlacksmith(journalData);
                     postConsoleAndNotification(MODULE.NAME, "completed NARRATIVE or ENCOUNTER journal entry creation.", "", false, false);
                     break;
                 case "INJURY":

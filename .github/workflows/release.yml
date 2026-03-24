@@ -44,6 +44,7 @@ jobs:
             styles/ \
             templates/ \
             lang/ \
+            images/ \
             -x "*.git*" -x "*.github*" -x "*node_modules*" -x "*.vscode*" -x "*.code-workspace*" -x "documentation/*"
 
       # Create release

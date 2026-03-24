@@ -29,6 +29,8 @@ Coffee Pub Regent adds AI-powered tools to Foundry VTT via the Blacksmith Utilit
 
 Configure your OpenAI API key and model in **Configure Settings → Module Settings → Coffee Pub Regent → Regent (AI)**. Without an API key, the Regent window will open but queries will fail until the key is set.
 
+**Blacksmith API:** Regent does not import Blacksmith **scripts**. It uses **`game.modules.get('coffee-pub-blacksmith')?.api`** for utilities, hooks, toolbar, window registry, **`createJournalEntry`** (JSON journals), and **`BlacksmithWindowBaseV2` / `getWindowBaseV2()`** when available (see [API: Window](https://github.com/Drowbe/coffee-pub-blacksmith/wiki/API:-Window)). Optional narrative banner images: **`modules/coffee-pub-regent/images/banners/`** (see `images/banners/README.md`).
+
 ## Toolbar
 
 When Regent is enabled, it registers six tools on the Blacksmith Utilities toolbar: Consult the Regent, Lookup, Character, Assistant, Encounter, Narrative. GM-only worksheets (Assistant, Encounter, Narrative) appear only for GMs.

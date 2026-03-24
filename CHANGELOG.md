@@ -6,9 +6,37 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
-## [13.0.1] - BUILD
+## [13.0.2] - 2026-03-23
 
-### Fixed the build download link in the module.json file.
+Blacksmith integration overhaul, docs, packaging, and **Create journal** UX — all in this release.
+
+### Fixed
+
+- **`module.json`**: **`manifest`**, **`download`**, **`url`**, and **`bugs`** point at the correct Regent GitHub repo and release assets (not Blacksmith-only URLs).
+- **Create journal** was only rendered when **`blnIsJSON`** was true; the model often returned **valid JSON** inside **markdown fences** or with extra text, so **`JSON.parse`** on the raw string failed and users only saw **Copy** / **Send to chat**. **Create journal** is now **always** on Regent **answer** toolbars, with visible **“Create journal”** label, tooltip, and book icon (**`partial-message.hbs`**).
+- **`cleanAndValidateJSON`** (**`regent.js`**): **`extractJsonStringForParse()`** strips fenced markdown and can pull an embedded **`{…}`** segment before parse, so **`blnIsJSON`** matches real model output more often.
+
+### Added
+
+- **`scripts/blacksmith-bridge.js`** — **`game.modules.get('coffee-pub-blacksmith')?.api`** for **`postConsoleAndNotification`**, **`playSound`**, **`trimString`**, **`getHookManager()`**, **`createJournalEntryFromBlacksmith()`** (API only; no dynamic import of Blacksmith **`scripts/*`**).
+- **`scripts/regent-window-base-v2.js`** + **`templates/regent-window-shell.hbs`** — Local Application V2 + Handlebars shell when Blacksmith’s base is not on **`mod.api`** at load time.
+- **`images/banners/README.md`** — Optional narrative banners under **`modules/coffee-pub-regent/images/banners/`**.
+- **`documentation/TODO.md`** — Blacksmith follow-ups (**`createJournalEntry`**, window base on **`mod.api` by `init`**) and **Regent JSON shape** for **`createJournalEntry`** (**`prepsetup`** as HTML string; legacy **`<li><strong>Synopsis</strong>:…`** pattern — see file).
+
+### Changed
+
+- **No ES imports from the Blacksmith package** — Removed **`/modules/coffee-pub-blacksmith/...`** **`import`**s from **`api-core.js`**, **`token-handler.js`**, **`window-query.js`** (was: **`api-core`**, **`manager-hooks`**, **`manager-sockets`**, **`common`**, **`window-base-v2`**), and **`regent-bootstrap.js`** (**`api/blacksmith-api.js`**). **`regent.js`** **`playSoundSafe`** uses the bridge.
+- **`window-query.js`** — **`resolveWindowQueryBase()`**: prefers **`mod.api.BlacksmithWindowBaseV2`** or **`getWindowBaseV2()`**; uses Blacksmith **`window-template.hbs`** when that base wins; else **`RegentWindowBaseV2`** + **`regent-window-shell.hbs`**. Dropped unused **`SocketManager`** import.
+- **`regent-bootstrap.js`** — Macros, chat card themes, toolbar/window registry from **`mod.api`** only (after **`ready`**).
+- **`partial-global-fund.hbs`** / **`partial-narrative-image.hbs`** — No Blacksmith asset URLs; banners under Regent **`images/banners/`** paths.
+- **`documentation/blacksmith-apis.md`** — **One-liner**, **registry vs. base class** ([API: Window](https://github.com/Drowbe/coffee-pub-blacksmith/wiki/API:-Window)), no-**`scripts/*`** policy, **`createJournalEntry`**, **`init` vs `ready`** for base resolution.
+- **`documentation/plan-regent.md`**, **`README.md`** — Integration and install/API expectations.
+- **`module.json`** — **`version` 13.0.2**; **`esmodules`**: **`blacksmith-bridge.js`** after **`const.js`**.
+- **`.github/workflows/release.yml`** — Release zip includes **`images/`**.
+
+### Removed
+
+- Deep links to Blacksmith **`scripts/*.js`** from Regent (internal paths are not a stable public contract).
 
 ## [13.0.0] - 2025-02-27
 

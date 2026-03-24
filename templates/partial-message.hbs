@@ -28,11 +28,11 @@
 
     {{#if blnToolbar}}
         <div class="regent-message-toolbar toolbar-right">
-                {{#if blnIsJSON}}
-                <button type="button" class="regent-chat-button-json regent-chat-button-normal" data-label="true" {{#if messageId}}data-message-id="{{messageId}}"{{/if}}>
-                    <i class="fa-solid fa-message-arrow-down"></i>
-                </button>
-                {{/if}}
+            {{!-- Create journal from JSON: always shown on answer cards; click parses JSON from message (see _onSendToJson). blnIsJSON only affects validation styling if we add it later. --}}
+            <button type="button" class="regent-chat-button-json regent-chat-button-normal" data-label="true" title="Create journal entry from JSON in this message" {{#if messageId}}data-message-id="{{messageId}}"{{/if}}>
+                <i class="fa-solid fa-book-open"></i>
+                <span>Create journal</span>
+            </button>
 
             <button type="button" class="regent-chat-button-copy regent-chat-button-normal" data-label="true" {{#if messageId}}data-message-id="{{messageId}}"{{/if}}>
                 <i class="fa-solid fa-copy"></i>

@@ -6,7 +6,6 @@ import { registerWindowQueryPartials } from './window-query-registration.js';
 import { OpenAIAPI } from './api-openai.js';
 import { buildButtonEventRegent } from './regent.js';
 import { registerRegentSettings } from './regent-settings.js';
-import { BlacksmithAPI } from '/modules/coffee-pub-blacksmith/api/blacksmith-api.js';
 
 async function onReady() {
     // Expose OpenAI API for other modules (e.g. dependents that want AI without implementing their own)
@@ -16,10 +15,9 @@ async function onReady() {
         regentModule.api.openai = OpenAIAPI;
     }
 
-    // Get Blacksmith API first so we can use it for macro choices and chat card themes
-    const blacksmithApi = await BlacksmithAPI.get();
-    const macroChoices = blacksmithApi?.BLACKSMITH?.arrMacroChoices ?? null;
-    const chatCardThemeChoices = blacksmithApi?.chatCards?.getThemeChoicesWithClassNames?.('card') ?? { 'theme-default': 'Default' };
+    const api = game.modules.get('coffee-pub-blacksmith')?.api;
+    const macroChoices = api?.BLACKSMITH?.arrMacroChoices ?? null;
+    const chatCardThemeChoices = api?.chatCards?.getThemeChoicesWithClassNames?.('card') ?? { 'theme-default': 'Default' };
 
     // Register Regent settings (macro dropdown and chat card theme use API when available)
     registerRegentSettings(macroChoices, chatCardThemeChoices);
@@ -27,7 +25,6 @@ async function onReady() {
     await registerWindowQueryPartials();
     OpenAIAPI.initializeMemory();
 
-    const api = game.modules.get('coffee-pub-blacksmith')?.api;
     if (!api?.registerToolbarTool) return;
 
     // Register Regent window with Blacksmith Window API so openWindow('consult-regent') works
