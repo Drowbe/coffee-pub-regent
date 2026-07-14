@@ -243,9 +243,13 @@ export class OpenAIAPI {
             } else if (response) {
                 try {
                     const data = await response.json();
+                    const apiMessage = data?.error?.message || "";
+                    const retryAfter = response.headers?.get?.('retry-after');
                     if (response.status === 401) errorMessage = "Invalid API key.";
-                    else if (response.status === 429) errorMessage = "Rate limit exceeded.";
-                    else errorMessage = data?.error?.message || "Unknown error";
+                    else if (response.status === 429) {
+                        errorMessage = apiMessage || "Rate limit exceeded.";
+                        if (retryAfter) errorMessage += ` Retry after ${retryAfter} seconds.`;
+                    } else errorMessage = apiMessage || "Unknown error";
                 } catch (e) { errorMessage = "Could not decode API response"; }
             }
             return `My mind is clouded. ${errorMessage}`;
