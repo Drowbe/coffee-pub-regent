@@ -2791,11 +2791,9 @@ Please format the response using <p> for paragraphs (not <br> or <br><br>), <h4>
             return null;
         };
 
-        const blacksmithModuleId = 'coffee-pub-blacksmith';
-
         // Get values with cookie fallbacks
-        const strDefaultNarrativeFolder = getCookieValue('folder_name') || 
-            game.settings.get(blacksmithModuleId, 'defaultNarrativeFolder');
+        const strDefaultNarrativeFolder = getCookieValue('folder_name') ||
+            '';
         
         const strDefaultJournalPageTitle = getCookieValue('scene_title') || 
             game.settings.get(MODULE.ID, 'defaultJournalPageTitle');
@@ -2815,11 +2813,11 @@ Please format the response using <p> for paragraphs (not <br> or <br><br>), <h4>
         // Get the new settings with cookie fallbacks
         const blnNarrativeUseCookies = game.settings.get(MODULE.ID, 'narrativeUseCookies');
         
-        const strNarrativeDefaultCardImage = getCookieValue('card_image') || 
-            game.settings.get(blacksmithModuleId, 'narrativeDefaultCardImage');
-        
-        const strNarrativeDefaultImagePath = getCookieValue('custom_image_path') || 
-            game.settings.get(blacksmithModuleId, 'narrativeDefaultImagePath');
+        const strNarrativeDefaultCardImage = getCookieValue('card_image') ||
+            'none';
+
+        const strNarrativeDefaultImagePath = getCookieValue('custom_image_path') ||
+            '';
         
         // Convert string 'true'/'false' from cookie to boolean
         const blnNarrativeDefaultIncludeEncounter = getCookieValue('include_encounter') === 'true' || 
@@ -2838,8 +2836,7 @@ Please format the response using <p> for paragraphs (not <br> or <br><br>), <h4>
             game.settings.get(MODULE.ID, 'narrativeDefaultEncounterDetails');
 
         // Get the image display name
-        const imageSettings = game.settings.settings.get(blacksmithModuleId + '.narrativeDefaultCardImage');
-        const strNarrativeDefaultCardImageName = imageSettings?.choices?.[strNarrativeDefaultCardImage];
+        const strNarrativeDefaultCardImageName = null;
 
         // Return all variables in the data object
         return {
