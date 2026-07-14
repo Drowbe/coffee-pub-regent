@@ -2751,11 +2751,22 @@ Please format the response using <p> for paragraphs (not <br> or <br><br>), <h4>
             // If message is a string, use insertAdjacentHTML, otherwise appendChild
             if (typeof message === 'string') {
                 output.insertAdjacentHTML('beforeend', message);
+                this._scrollToBottom();
+                return output.lastElementChild;
             } else {
                 output.appendChild(message);
+                this._scrollToBottom();
+                return message;
             }
-            this._scrollToBottom();
         }
+        return null;
+    }
+
+    removeProcessingMessage(requestId) {
+        if (!requestId) return;
+        const output = this._getNativeElement()?.querySelector(`#${MODULE.ID}-output`);
+        const processing = output?.querySelector(`.regent-processing[data-request-id="${requestId}"]`);
+        processing?.remove();
     }
 
     _scrollToBottom() {

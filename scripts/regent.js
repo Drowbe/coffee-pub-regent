@@ -137,6 +137,7 @@ export async function buildQueryCard(question, queryWindow, queryContext = '') {
         return;
     }
     queryWindow._regentSubmitting = true;
+    let requestId = null;
 
     try {
         const strQuestion = question;
@@ -144,6 +145,7 @@ export async function buildQueryCard(question, queryWindow, queryContext = '') {
         let strAnswer = "";
         const strQueryContext = queryContext;
         const strDateStamp = generateFormattedDate();
+        requestId = `regent-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
         const templatePath = REGENT.WINDOW_QUERY_MESSAGE;
         const template = await getCachedTemplate(templatePath);
 
@@ -161,13 +163,14 @@ export async function buildQueryCard(question, queryWindow, queryContext = '') {
         CARDDATA = {
             strDateStamp, blnProcessing: true, blnToolbar: false,
             strSpeakerIcon: "fa-crystal-ball", strSpeakerName: "Regent",
-            strMessageIntro: "Thinking...", strMessageContent: ""
+            strMessageIntro: "Thinking...", strMessageContent: "", requestId
         };
         queryWindow.displayMessage(template(CARDDATA));
         scrollToBottom();
         await playSoundSafe(window.COFFEEPUB?.SOUNDPOP01, window.COFFEEPUB?.SOUNDVOLUMESOFT);
 
         const openAIResponse = await OpenAIAPI.getOpenAIReplyAsHtml(strQuestion, { useConversationHistory: false });
+        queryWindow.removeProcessingMessage(requestId);
         const jsonCheck = cleanAndValidateJSON(openAIResponse.content || openAIResponse);
         strAnswer = jsonCheck.isValid ? jsonCheck.cleaned : (openAIResponse.content || openAIResponse);
 
@@ -184,6 +187,7 @@ export async function buildQueryCard(question, queryWindow, queryContext = '') {
         scrollToBottom();
         await playSoundSafe(window.COFFEEPUB?.SOUNDNOTIFICATION05, window.COFFEEPUB?.SOUNDVOLUMESOFT);
     } finally {
+        queryWindow.removeProcessingMessage(requestId);
         queryWindow._regentSubmitting = false;
     }
 }

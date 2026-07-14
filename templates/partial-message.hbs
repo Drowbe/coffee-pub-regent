@@ -1,5 +1,5 @@
 {{#if blnProcessing}}
-    <div id="regent-message-wrapper-processing" class="regent-processing">
+    <div id="regent-message-wrapper-processing" class="regent-processing" {{#if requestId}}data-request-id="{{requestId}}"{{/if}}>
         <div id="regent-message-header-processing">
             <i class="fas {{strSpeakerIcon}}"></i>
             <span class="regent-message-speaker">
