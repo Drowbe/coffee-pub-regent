@@ -10,6 +10,7 @@ export class OpenAIAPI {
     static sessionHistories = new Map();
     static STORAGE_KEY = 'regent-openai-memories';
     static PROJECT_HEADER = 'OpenAI-Project';
+    static DEFAULT_MAX_OUTPUT_TOKENS = 1200;
 
     static pushHistory(...args) {
         const maxHistoryLength = game.settings.get(MODULE.ID, 'openAIContextLength');
@@ -169,6 +170,12 @@ export class OpenAIAPI {
         return this.getProjectId() !== null;
     }
 
+    static getMaxOutputTokens() {
+        const configured = Number(getSettingSafely(MODULE.ID, 'openAIMaxOutputTokens', this.DEFAULT_MAX_OUTPUT_TOKENS));
+        if (!Number.isFinite(configured)) return this.DEFAULT_MAX_OUTPUT_TOKENS;
+        return Math.max(200, Math.min(4096, Math.floor(configured)));
+    }
+
     static async callGptApiTextWithMemory(query, sessionId = 'default', projectId = null) {
         const maxHistoryLength = game.settings.get(MODULE.ID, 'openAIContextLength');
         const sessionHistory = maxHistoryLength > 0 ? this.getSessionHistory(sessionId).slice(-maxHistoryLength) : this.getSessionHistory(sessionId);
@@ -179,15 +186,16 @@ export class OpenAIAPI {
         return result;
     }
 
-    static async callGptApiText(query, customHistory = null, projectId = null) {
+    static async callGptApiText(query, customHistory = null, projectId = null, options = {}) {
         if (!query) return "What madness is this? You query me with silence? I received no words.";
         const apiKey = game.settings.get(MODULE.ID, 'openAIAPIKey');
         const model = game.settings.get(MODULE.ID, 'openAIModel');
         const prompt = game.settings.get(MODULE.ID, 'openAIPrompt');
         const temperature = game.settings.get(MODULE.ID, 'openAITemperature');
         const apiUrl = 'https://api.openai.com/v1/chat/completions';
-        const promptMessage = { role: 'user', content: prompt };
+        const promptMessage = { role: 'system', content: prompt.trim() };
         const queryMessage = { role: 'user', content: query };
+        const useConversationHistory = options.useConversationHistory ?? true;
 
         if (!apiKey || typeof apiKey !== 'string' || apiKey.trim() === '') {
             postConsoleAndNotification(MODULE.NAME, `Invalid API key:`, apiKey, true, false);
@@ -199,8 +207,10 @@ export class OpenAIAPI {
         }
 
         const maxHistoryLength = game.settings.get(MODULE.ID, 'openAIContextLength');
-        const history = customHistory || (maxHistoryLength > 0 ? this.pushHistory().slice(-maxHistoryLength) : this.pushHistory());
-        const messages = history.concat(promptMessage, queryMessage);
+        const history = Array.isArray(customHistory)
+            ? customHistory
+            : (useConversationHistory && maxHistoryLength > 0 ? this.history.slice(-maxHistoryLength) : []);
+        const messages = [promptMessage, ...history, queryMessage];
 
         if (!Array.isArray(messages) || messages.length === 0) {
             postConsoleAndNotification(MODULE.NAME, `Invalid messages array:`, messages, true, false);
@@ -214,7 +224,7 @@ export class OpenAIAPI {
             }
         }
 
-        let max_tokens = 4096;
+        const max_tokens = this.getMaxOutputTokens();
         postConsoleAndNotification(MODULE.NAME, `Using model ${model} with max_tokens ${max_tokens}`, "", true, false);
         const tempValue = parseFloat(temperature);
         const validTemperature = isNaN(tempValue) ? 0.7 : Math.max(0, Math.min(2, tempValue));
@@ -235,6 +245,12 @@ export class OpenAIAPI {
         }
 
         const requestOptions = { method: 'POST', headers, body: JSON.stringify(requestBody), signal: AbortSignal.timeout(120000) };
+        const getRetryDelayMs = (response, retries) => {
+            const retryAfter = response?.headers?.get?.('retry-after');
+            const parsedRetryAfter = Number(retryAfter);
+            if (Number.isFinite(parsedRetryAfter) && parsedRetryAfter > 0) return parsedRetryAfter * 1000;
+            return response?.status === 429 ? 1500 * (2 ** retries) : 1000 * (2 ** retries);
+        };
 
         const handleError = async (response, error = null) => {
             let errorMessage = "";
@@ -257,8 +273,7 @@ export class OpenAIAPI {
 
         try {
             let response = null;
-            for (let retries = 0, backoffTime = 2000; retries < 4; retries++, backoffTime *= 2) {
-                if (retries > 0) await new Promise(r => setTimeout(r, backoffTime));
+            for (let retries = 0; retries < 3; retries++) {
                 try {
                     response = await fetch(apiUrl, requestOptions);
                     if (response.ok) {
@@ -272,12 +287,14 @@ export class OpenAIAPI {
                         else if (model.includes('gpt-3.5-turbo')) cost = (usage.prompt_tokens * 0.0005 + usage.completion_tokens * 0.0015) / 1000;
                         replyMessage.usage = usage;
                         replyMessage.cost = cost;
-                        this.pushHistory(queryMessage, replyMessage);
+                        if (useConversationHistory) this.pushHistory(queryMessage, replyMessage);
                         return replyMessage;
                     }
                     if (response.status !== 429 && response.status !== 500) break;
+                    if (retries < 2) await new Promise(r => setTimeout(r, getRetryDelayMs(response, retries)));
                 } catch (fetchError) {
                     if (fetchError.name !== "AbortError") throw fetchError;
+                    if (retries < 2) await new Promise(r => setTimeout(r, 1000 * (2 ** retries)));
                 }
             }
             return await handleError(response);
@@ -303,8 +320,8 @@ export class OpenAIAPI {
         return this._formatReplyContent(response);
     }
 
-    static async getOpenAIReplyAsHtml(query) {
-        const response = await this.callGptApiText(query);
+    static async getOpenAIReplyAsHtml(query, options = {}) {
+        const response = await this.callGptApiText(query, null, null, options);
         if (typeof response === 'string') return response;
         return this._formatReplyContent(response);
     }

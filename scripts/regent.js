@@ -132,50 +132,60 @@ function scrollToBottom() {
 }
 
 export async function buildQueryCard(question, queryWindow, queryContext = '') {
-    const strQuestion = question;
-    let strDisplayQuestion = question;
-    let strAnswer = "";
-    const strQueryContext = queryContext;
-    const strDateStamp = generateFormattedDate();
-    const templatePath = REGENT.WINDOW_QUERY_MESSAGE;
-    const template = await getCachedTemplate(templatePath);
+    if (queryWindow._regentSubmitting) {
+        postConsoleAndNotification(MODULE.NAME, 'A Regent request is already in progress.', '', false, false);
+        return;
+    }
+    queryWindow._regentSubmitting = true;
 
-    if (strQueryContext) strDisplayQuestion = strQueryContext;
+    try {
+        const strQuestion = question;
+        let strDisplayQuestion = question;
+        let strAnswer = "";
+        const strQueryContext = queryContext;
+        const strDateStamp = generateFormattedDate();
+        const templatePath = REGENT.WINDOW_QUERY_MESSAGE;
+        const template = await getCachedTemplate(templatePath);
 
-    let CARDDATA = {
-        strDateStamp, blnProcessing: false, blnToolbar: false,
-        strSpeakerIcon: "fa-helmet-battle", strHeaderStlye: "regent-message-header-question",
-        strSpeakerName: game.user.name, strMessageIntro: "", strMessageContent: strDisplayQuestion
-    };
-    queryWindow.displayMessage(template(CARDDATA));
-    scrollToBottom();
-    await playSoundSafe(window.COFFEEPUB?.SOUNDPOP02, window.COFFEEPUB?.SOUNDVOLUMESOFT);
+        if (strQueryContext) strDisplayQuestion = strQueryContext;
 
-    CARDDATA = {
-        strDateStamp, blnProcessing: true, blnToolbar: false,
-        strSpeakerIcon: "fa-crystal-ball", strSpeakerName: "Regent",
-        strMessageIntro: "Thinking...", strMessageContent: ""
-    };
-    queryWindow.displayMessage(template(CARDDATA));
-    scrollToBottom();
-    await playSoundSafe(window.COFFEEPUB?.SOUNDPOP01, window.COFFEEPUB?.SOUNDVOLUMESOFT);
+        let CARDDATA = {
+            strDateStamp, blnProcessing: false, blnToolbar: false,
+            strSpeakerIcon: "fa-helmet-battle", strHeaderStlye: "regent-message-header-question",
+            strSpeakerName: game.user.name, strMessageIntro: "", strMessageContent: strDisplayQuestion
+        };
+        queryWindow.displayMessage(template(CARDDATA));
+        scrollToBottom();
+        await playSoundSafe(window.COFFEEPUB?.SOUNDPOP02, window.COFFEEPUB?.SOUNDVOLUMESOFT);
 
-    const openAIResponse = await OpenAIAPI.getOpenAIReplyAsHtml(strQuestion);
-    const jsonCheck = cleanAndValidateJSON(openAIResponse.content || openAIResponse);
-    strAnswer = jsonCheck.isValid ? jsonCheck.cleaned : (openAIResponse.content || openAIResponse);
+        CARDDATA = {
+            strDateStamp, blnProcessing: true, blnToolbar: false,
+            strSpeakerIcon: "fa-crystal-ball", strSpeakerName: "Regent",
+            strMessageIntro: "Thinking...", strMessageContent: ""
+        };
+        queryWindow.displayMessage(template(CARDDATA));
+        scrollToBottom();
+        await playSoundSafe(window.COFFEEPUB?.SOUNDPOP01, window.COFFEEPUB?.SOUNDVOLUMESOFT);
 
-    const messageId = Date.now();
-    CARDDATA = {
-        strDateStamp, blnProcessing: false, blnToolbar: true,
-        strSpeakerIcon: "fa-crystal-ball", strHeaderStlye: "regent-message-header-answer",
-        strSpeakerName: "Regent", strMessageIntro: "", strMessageContent: strAnswer,
-        messageId, blnIsJSON: jsonCheck.isValid,
-        tokenInfo: openAIResponse.usage ? `${openAIResponse.usage.total_tokens} Tokens` : null,
-        cost: openAIResponse.cost ? openAIResponse.cost.toFixed(4) : null
-    };
-    queryWindow.displayMessage(template(CARDDATA));
-    scrollToBottom();
-    await playSoundSafe(window.COFFEEPUB?.SOUNDNOTIFICATION05, window.COFFEEPUB?.SOUNDVOLUMESOFT);
+        const openAIResponse = await OpenAIAPI.getOpenAIReplyAsHtml(strQuestion, { useConversationHistory: false });
+        const jsonCheck = cleanAndValidateJSON(openAIResponse.content || openAIResponse);
+        strAnswer = jsonCheck.isValid ? jsonCheck.cleaned : (openAIResponse.content || openAIResponse);
+
+        const messageId = Date.now();
+        CARDDATA = {
+            strDateStamp, blnProcessing: false, blnToolbar: true,
+            strSpeakerIcon: "fa-crystal-ball", strHeaderStlye: "regent-message-header-answer",
+            strSpeakerName: "Regent", strMessageIntro: "", strMessageContent: strAnswer,
+            messageId, blnIsJSON: jsonCheck.isValid,
+            tokenInfo: openAIResponse.usage ? `${openAIResponse.usage.total_tokens} Tokens` : null,
+            cost: openAIResponse.cost ? openAIResponse.cost.toFixed(4) : null
+        };
+        queryWindow.displayMessage(template(CARDDATA));
+        scrollToBottom();
+        await playSoundSafe(window.COFFEEPUB?.SOUNDNOTIFICATION05, window.COFFEEPUB?.SOUNDVOLUMESOFT);
+    } finally {
+        queryWindow._regentSubmitting = false;
+    }
 }
 
 export async function buildButtonEventRegent(worksheet = 'default') {

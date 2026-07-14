@@ -105,8 +105,16 @@ export function registerRegentSettings(macroChoicesFromApi = null, chatCardTheme
         name: MODULE.ID + '.openAIContextLength-Label',
         hint: MODULE.ID + '.openAIContextLength-Hint',
         scope: 'world', config: true, requiresReload: true,
-        type: Number, default: 10,
-        range: { min: 0, max: 100, step: 5 },
+        type: Number, default: 4,
+        range: { min: 0, max: 100, step: 1 },
+        group: AI_GROUP
+    });
+    game.settings.register(MODULE.ID, 'openAIMaxOutputTokens', {
+        name: MODULE.ID + '.openAIMaxOutputTokens-Label',
+        hint: MODULE.ID + '.openAIMaxOutputTokens-Hint',
+        scope: 'world', config: true, requiresReload: false,
+        type: Number, default: 1200,
+        range: { min: 200, max: 4096, step: 100 },
         group: AI_GROUP
     });
     game.settings.register(MODULE.ID, 'openAITemperature', {
