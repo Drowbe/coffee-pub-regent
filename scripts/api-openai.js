@@ -1,15 +1,16 @@
 // ==================================================================
-// ===== OPENAI API (Regent) ========================================
+// ===== AI API (Regent) ============================================
 // ==================================================================
 
 import { MODULE } from './const.js';
 import { postConsoleAndNotification, getSettingSafely } from './api-core.js';
 
-export class OpenAIAPI {
+export class RegentAIAPI {
     static history = [];
     static sessionHistories = new Map();
     static STORAGE_KEY = 'regent-openai-memories';
     static PROJECT_HEADER = 'OpenAI-Project';
+    static ANTHROPIC_VERSION = '2023-06-01';
     static DEFAULT_MAX_OUTPUT_TOKENS = 1200;
 
     static pushHistory(...args) {
@@ -170,6 +171,24 @@ export class OpenAIAPI {
         return this.getProjectId() !== null;
     }
 
+    static getProvider() {
+        return getSettingSafely(MODULE.ID, 'aiProvider', 'openai');
+    }
+
+    static getProviderApiKey(provider = this.getProvider()) {
+        if (provider === 'anthropic') {
+            return game.settings.get(MODULE.ID, 'anthropicAPIKey');
+        }
+        return game.settings.get(MODULE.ID, 'openAIAPIKey');
+    }
+
+    static getProviderModel(provider = this.getProvider()) {
+        if (provider === 'anthropic') {
+            return game.settings.get(MODULE.ID, 'anthropicModel');
+        }
+        return game.settings.get(MODULE.ID, 'openAIModel');
+    }
+
     static getMaxOutputTokens() {
         const configured = Number(getSettingSafely(MODULE.ID, 'openAIMaxOutputTokens', this.DEFAULT_MAX_OUTPUT_TOKENS));
         if (!Number.isFinite(configured)) return this.DEFAULT_MAX_OUTPUT_TOKENS;
@@ -188,11 +207,11 @@ export class OpenAIAPI {
 
     static async callGptApiText(query, customHistory = null, projectId = null, options = {}) {
         if (!query) return "What madness is this? You query me with silence? I received no words.";
-        const apiKey = game.settings.get(MODULE.ID, 'openAIAPIKey');
-        const model = game.settings.get(MODULE.ID, 'openAIModel');
+        const provider = this.getProvider();
+        const apiKey = this.getProviderApiKey(provider);
+        const model = this.getProviderModel(provider);
         const prompt = game.settings.get(MODULE.ID, 'openAIPrompt');
         const temperature = game.settings.get(MODULE.ID, 'openAITemperature');
-        const apiUrl = 'https://api.openai.com/v1/chat/completions';
         const promptMessage = { role: 'system', content: prompt.trim() };
         const queryMessage = { role: 'user', content: query };
         const useConversationHistory = options.useConversationHistory ?? true;
@@ -225,7 +244,7 @@ export class OpenAIAPI {
         }
 
         const max_tokens = this.getMaxOutputTokens();
-        postConsoleAndNotification(MODULE.NAME, `Using model ${model} with max_tokens ${max_tokens}`, "", true, false);
+        postConsoleAndNotification(MODULE.NAME, `Using ${provider} model ${model} with max_tokens ${max_tokens}`, "", true, false);
         const tempValue = parseFloat(temperature);
         const validTemperature = isNaN(tempValue) ? 0.7 : Math.max(0, Math.min(2, tempValue));
 
@@ -233,15 +252,40 @@ export class OpenAIAPI {
             postConsoleAndNotification(MODULE.NAME, `Invalid model name: ${model}`, "", true, false);
             return "My mind is clouded. Invalid model configuration.";
         }
-        if (!model.startsWith('gpt-') && !model.startsWith('o1-')) {
-            postConsoleAndNotification(MODULE.NAME, `Warning: Model name doesn't start with 'gpt-' or 'o1-': ${model}`, "", true, false);
-        }
 
-        const requestBody = { model: model.trim(), messages, temperature: validTemperature, max_tokens };
-        const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` };
-        const effectiveProjectId = projectId || this.getProjectId();
-        if (effectiveProjectId) {
-            headers[this.PROJECT_HEADER] = effectiveProjectId;
+        const apiUrl = provider === 'anthropic'
+            ? 'https://api.anthropic.com/v1/messages'
+            : 'https://api.openai.com/v1/chat/completions';
+        const requestBody = provider === 'anthropic'
+            ? {
+                model: model.trim(),
+                system: prompt.trim(),
+                messages: messages.filter((m) => m.role !== 'system'),
+                max_tokens
+            }
+            : {
+                model: model.trim(),
+                messages,
+                temperature: validTemperature,
+                max_tokens
+            };
+        const headers = provider === 'anthropic'
+            ? {
+                'Content-Type': 'application/json',
+                'x-api-key': apiKey,
+                'anthropic-version': this.ANTHROPIC_VERSION,
+                // Browser access is disabled by default in Anthropic's SDK; set the equivalent opt-in header for direct fetch usage.
+                'anthropic-dangerous-direct-browser-access': 'true'
+            }
+            : {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
+            };
+        if (provider === 'openai') {
+            const effectiveProjectId = projectId || this.getProjectId();
+            if (effectiveProjectId) {
+                headers[this.PROJECT_HEADER] = effectiveProjectId;
+            }
         }
 
         const requestOptions = { method: 'POST', headers, body: JSON.stringify(requestBody), signal: AbortSignal.timeout(120000) };
@@ -259,9 +303,10 @@ export class OpenAIAPI {
             } else if (response) {
                 try {
                     const data = await response.json();
-                    const apiMessage = data?.error?.message || "";
+                    const apiMessage = data?.error?.message || data?.message || "";
                     const retryAfter = response.headers?.get?.('retry-after');
                     if (response.status === 401) errorMessage = "Invalid API key.";
+                    else if (response.status === 400) errorMessage = apiMessage || "Invalid request.";
                     else if (response.status === 429) {
                         errorMessage = apiMessage || "Rate limit exceeded.";
                         if (retryAfter) errorMessage += ` Retry after ${retryAfter} seconds.`;
@@ -278,13 +323,7 @@ export class OpenAIAPI {
                     response = await fetch(apiUrl, requestOptions);
                     if (response.ok) {
                         const data = await response.json();
-                        const replyMessage = data.choices[0].message;
-                        const usage = data.usage;
-                        let cost = (usage.prompt_tokens * 0.001 + usage.completion_tokens * 0.002) / 1000;
-                        if (model.includes('gpt-4o-mini')) cost = (usage.prompt_tokens * 0.00015 + usage.completion_tokens * 0.0006) / 1000;
-                        else if (model.includes('gpt-4o')) cost = (usage.prompt_tokens * 0.005 + usage.completion_tokens * 0.015) / 1000;
-                        else if (model.includes('gpt-4')) cost = (usage.prompt_tokens * 0.03 + usage.completion_tokens * 0.06) / 1000;
-                        else if (model.includes('gpt-3.5-turbo')) cost = (usage.prompt_tokens * 0.0005 + usage.completion_tokens * 0.0015) / 1000;
+                        const { replyMessage, usage, cost } = this._normalizeProviderResponse(provider, model, queryMessage, data);
                         replyMessage.usage = usage;
                         replyMessage.cost = cost;
                         if (useConversationHistory) this.pushHistory(queryMessage, replyMessage);
@@ -303,17 +342,6 @@ export class OpenAIAPI {
         }
     }
 
-    static async callGptApiImage(query) {
-        const apiKey = game.settings.get(MODULE.ID, 'openAIAPIKey');
-        const response = await fetch('https://api.openai.com/v1/images', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-            body: JSON.stringify({ model: "dall-e-3", prompt: query, n: 1, size: "1024x1024" })
-        });
-        const data = await response.json();
-        return data.data[0].url;
-    }
-
     static async getOpenAIReplyAsHtmlWithMemory(query, sessionId = 'default', projectId = null) {
         const response = await this.callGptApiTextWithMemory(query, sessionId, projectId);
         if (typeof response === 'string') return response;
@@ -324,6 +352,42 @@ export class OpenAIAPI {
         const response = await this.callGptApiText(query, null, null, options);
         if (typeof response === 'string') return response;
         return this._formatReplyContent(response);
+    }
+
+    static async getAIReplyAsHtmlWithMemory(query, sessionId = 'default', projectId = null) {
+        return this.getOpenAIReplyAsHtmlWithMemory(query, sessionId, projectId);
+    }
+
+    static async getAIReplyAsHtml(query, options = {}) {
+        return this.getOpenAIReplyAsHtml(query, options);
+    }
+
+    static _normalizeProviderResponse(provider, model, queryMessage, data) {
+        if (provider === 'anthropic') {
+            const textParts = Array.isArray(data?.content)
+                ? data.content.filter((part) => part?.type === 'text').map((part) => part.text || '')
+                : [];
+            const content = textParts.join('').trim();
+            const usage = {
+                prompt_tokens: data?.usage?.input_tokens ?? 0,
+                completion_tokens: data?.usage?.output_tokens ?? 0,
+                total_tokens: (data?.usage?.input_tokens ?? 0) + (data?.usage?.output_tokens ?? 0)
+            };
+            return {
+                replyMessage: { role: 'assistant', content },
+                usage,
+                cost: null
+            };
+        }
+
+        const replyMessage = data.choices[0].message;
+        const usage = data.usage;
+        let cost = (usage.prompt_tokens * 0.001 + usage.completion_tokens * 0.002) / 1000;
+        if (model.includes('gpt-4o-mini')) cost = (usage.prompt_tokens * 0.00015 + usage.completion_tokens * 0.0006) / 1000;
+        else if (model.includes('gpt-4o')) cost = (usage.prompt_tokens * 0.005 + usage.completion_tokens * 0.015) / 1000;
+        else if (model.includes('gpt-4')) cost = (usage.prompt_tokens * 0.03 + usage.completion_tokens * 0.06) / 1000;
+        else if (model.includes('gpt-3.5-turbo')) cost = (usage.prompt_tokens * 0.0005 + usage.completion_tokens * 0.0015) / 1000;
+        return { replyMessage, usage, cost };
     }
 
     static _formatReplyContent(response) {
@@ -416,3 +480,5 @@ export class OpenAIAPI {
         return result.join("");
     }
 }
+
+export const OpenAIAPI = RegentAIAPI;

@@ -1,20 +1,20 @@
-# API: OpenAI Integration
+# API: Regent AI Integration
 
-**Audience:** Developers integrating with the Coffee Pub Regent module and leveraging its exposed OpenAI API.
+**Audience:** Developers integrating with the Coffee Pub Regent module and leveraging its exposed AI API.
 
-This document describes the OpenAI integration API provided by **Coffee Pub Regent** for AI-powered functionality. Regent is an optional module that requires Coffee Pub Blacksmith; the OpenAI API is exposed on Regent’s `module.api` for other modules to use.
+This document describes the AI integration API provided by **Coffee Pub Regent** for AI-powered functionality. Regent is an optional module that requires Coffee Pub Blacksmith; the AI API is exposed on Regent’s `module.api` for other modules to use.
 
-## **Accessing the OpenAI API**
+## **Accessing the AI API**
 
 ```javascript
 // Get the Regent module API (requires coffee-pub-regent to be enabled)
 const regent = game.modules.get('coffee-pub-regent')?.api;
 
-// Access the OpenAI API (available after game is ready)
-const openai = regent?.openai;
+// Access the provider-neutral AI API (available after game is ready)
+const ai = regent?.ai;
 ```
 
-**Note:** `api.openai` is set when Regent’s `ready` hook runs. Ensure Regent is an active module and the game has reached the `ready` phase before calling these methods.
+**Note:** `api.ai` is set when Regent’s `ready` hook runs. `api.openai` remains as a backward-compatible alias. Ensure Regent is an active module and the game has reached the `ready` phase before calling these methods.
 
 ## **Available Functions**
 
@@ -22,9 +22,10 @@ const openai = regent?.openai;
 |----------|------|-------------|------------|
 | `getOpenAIReplyAsHtml` | Async Function | Get AI response as HTML formatted | `(query)` |
 | `getOpenAIReplyAsHtmlWithMemory` | Async Function | Get AI response with session memory | `(query, sessionId, projectId?)` |
-| `callGptApiText` | Async Function | Call OpenAI text completion API | `(query, customHistory, projectId?)` |
-| `callGptApiTextWithMemory` | Async Function | Call OpenAI API with session memory | `(query, sessionId, projectId?)` |
-| `callGptApiImage` | Async Function | Call OpenAI image generation API | `(query)` |
+| `getAIReplyAsHtml` | Async Function | Get AI response as HTML formatted | `(query, options?)` |
+| `getAIReplyAsHtmlWithMemory` | Async Function | Get AI response with session memory | `(query, sessionId, projectId?)` |
+| `callGptApiText` | Async Function | Call the selected provider text API | `(query, customHistory, projectId?, options?)` |
+| `callGptApiTextWithMemory` | Async Function | Call the selected provider API with session memory | `(query, sessionId, projectId?)` |
 | `getSessionHistory` | Function | Get session conversation history | `(sessionId)` |
 | `clearSessionHistory` | Function | Clear specific session history | `(sessionId)` |
 | `clearAllSessionHistories` | Function | Clear all session histories | `()` |
@@ -50,72 +51,41 @@ Get an AI response formatted as HTML. This is the main function for AI interacti
 
 **Example:**
 ```javascript
-const response = await openai.getOpenAIReplyAsHtml("Create a fantasy tavern description");
+const response = await ai.getAIReplyAsHtml("Create a fantasy tavern description");
 console.log(response.content); // HTML formatted response
 ```
 
 ### **callGptApiText(query)**
 
-Direct access to OpenAI's text completion API with full response data.
+Direct access to the selected provider's text API with full response data.
 
 **Parameters:**
-- `query` (string) - The query to send to OpenAI
+- `query` (string) - The query to send to the selected provider
 
 **Returns:**
-- `Promise<Object>` - Full OpenAI response object including usage and cost data
+- `Promise<Object>` - Full normalized response object including usage data
 
 **Example:**
 ```javascript
-const response = await openai.callGptApiText("Explain the rules of D&D");
+const response = await ai.callGptApiText("Explain the rules of D&D");
 console.log(response.usage); // Token usage information
 console.log(response.cost); // Estimated cost
 ```
 
-### **callGptApiImage(query)**
-
-Generate images using OpenAI's DALL-E API.
-
-**Parameters:**
-- `query` (string) - The image description prompt
-
-**Returns:**
-- `Promise<string>` - URL of the generated image
-
-**Example:**
-```javascript
-const imageUrl = await openai.callGptApiImage("A medieval blacksmith's forge");
-// Use imageUrl in your application
-```
-
 ## **Configuration Requirements**
 
-The OpenAI API requires proper configuration in **Regent’s** module settings (Configure Settings → Module Settings → Coffee Pub Regent → Regent (AI)):
+The AI API requires proper configuration in **Regent’s** module settings (Configure Settings → Module Settings → Coffee Pub Regent → Regent (AI)):
 
-- **API Key**: Valid OpenAI API key
-- **Model**: Supported model (e.g., gpt-5, gpt-4o, gpt-4o-mini, gpt-3.5-turbo, o1-preview)
-- **Project ID**: Optional OpenAI Project ID for cost tracking and team management
+- **AI Provider**: OpenAI or Anthropic
+- **API Key**: Valid key for the selected provider
+- **Model**: Supported model for the selected provider
+- **Project ID**: Optional OpenAI Project ID for cost tracking and team management when using OpenAI
 - **Prompt**: System prompt for AI behavior
 - **Temperature**: Response creativity (0-2)
 
-## **Supported Models (December 2024)**
+## **Supported Models**
 
-| Model | Type | Best For | Cost Efficiency |
-|-------|------|----------|-----------------|
-| `gpt-5` | Latest flagship | Maximum capability, complex tasks | Premium performance |
-| `gpt-4o` | Current flagship | Complex tasks, maximum capability | High performance |
-| `gpt-4o-mini` | Cost-effective GPT-4o | Most tasks, budget-conscious | **Recommended default** |
-| `gpt-4-turbo` | Legacy GPT-4 | Backward compatibility | Moderate |
-| `gpt-3.5-turbo` | Budget option | Simple tasks, high volume | Most cost-effective |
-| `o1-preview` | Reasoning model | Complex reasoning, coding | Premium pricing |
-| `o1-mini` | Reasoning model mini | Reasoning tasks, budget | Moderate pricing |
-
-### **Model Recommendations**
-
-- **For most users**: `gpt-4o-mini` - Best balance of capability and cost
-- **For maximum capability**: `gpt-5` - Latest and most advanced model
-- **For high performance**: `gpt-4o` - Current flagship with proven reliability
-- **For budget-conscious**: `gpt-3.5-turbo` - Still very capable for most tasks
-- **For complex reasoning**: `o1-preview` or `o1-mini` - When you need advanced reasoning
+Regent exposes separate model settings for OpenAI and Anthropic. Use the models listed in module settings for the selected provider rather than relying on a hard-coded model list in this document.
 
 ## **OpenAI Projects Support**
 
@@ -133,22 +103,22 @@ The API supports OpenAI Projects for better cost tracking and team management:
 
 ```javascript
 // Check if projects are enabled
-const isEnabled = openai.isProjectEnabled();
+const isEnabled = ai.isProjectEnabled();
 console.log(`Projects enabled: ${isEnabled}`);
 
 // Get current project ID
-const projectId = openai.getProjectId();
+const projectId = ai.getProjectId();
 console.log(`Current project: ${projectId}`);
 
 // Use with specific project (overrides setting)
-const response = await openai.getOpenAIReplyAsHtmlWithMemory(
+const response = await ai.getAIReplyAsHtmlWithMemory(
     "Create a character", 
     "user123", 
     "proj_abc123"
 );
 
 // Use with default project (from settings)
-const response2 = await openai.getOpenAIReplyAsHtmlWithMemory(
+const response2 = await ai.getAIReplyAsHtmlWithMemory(
     "Create a character", 
     "user123"
 );
@@ -175,30 +145,21 @@ The API includes comprehensive error handling:
 ### **Basic AI Query**
 ```javascript
 const regent = game.modules.get('coffee-pub-regent')?.api;
-const openai = regent?.openai;
-if (openai) {
-    const response = await openai.getOpenAIReplyAsHtml("What is a good adventure hook?");
+const ai = regent?.ai;
+if (ai) {
+    const response = await ai.getAIReplyAsHtml("What is a good adventure hook?");
     console.log(response.content);
 }
 ```
 
 ### **Advanced Usage with Full Response**
 ```javascript
-const openai = game.modules.get('coffee-pub-regent')?.api?.openai;
-if (openai) {
-    const response = await openai.callGptApiText("Create a dungeon room");
+const ai = game.modules.get('coffee-pub-regent')?.api?.ai;
+if (ai) {
+    const response = await ai.callGptApiText("Create a dungeon room");
     console.log(`Tokens used: ${response.usage.total_tokens}`);
-    console.log(`Cost: $${response.cost}`);
+    if (response.cost != null) console.log(`Cost: $${response.cost}`);
     console.log(`Content: ${response.content}`);
-}
-```
-
-### **Image Generation**
-```javascript
-const openai = game.modules.get('coffee-pub-regent')?.api?.openai;
-if (openai) {
-    const imageUrl = await openai.callGptApiImage("A dragon's lair with treasure");
-    // Use the image URL in your application
 }
 ```
 
@@ -210,8 +171,8 @@ The API now supports persistent conversation memory through session IDs:
 
 ```javascript
 // Create a conversation with memory
-const response1 = await openai.getOpenAIReplyAsHtmlWithMemory("My character is a wizard named Gandalf", "user123");
-const response2 = await openai.getOpenAIReplyAsHtmlWithMemory("What spells should I prepare?", "user123");
+const response1 = await ai.getAIReplyAsHtmlWithMemory("My character is a wizard named Gandalf", "user123");
+const response2 = await ai.getAIReplyAsHtmlWithMemory("What spells should I prepare?", "user123");
 // The AI will remember Gandalf is a wizard from the previous message
 ```
 
@@ -219,13 +180,13 @@ const response2 = await openai.getOpenAIReplyAsHtmlWithMemory("What spells shoul
 
 ```javascript
 // Get conversation history for a session
-const history = openai.getSessionHistory("user123");
+const history = ai.getSessionHistory("user123");
 
 // Clear specific session memory
-openai.clearSessionHistory("user123");
+ai.clearSessionHistory("user123");
 
 // Clear all session memories
-openai.clearAllSessionHistories();
+ai.clearAllSessionHistories();
 ```
 
 ### **Memory Benefits**
@@ -245,16 +206,16 @@ Memories are automatically saved to browser localStorage and survive:
 
 ```javascript
 // Check memory statistics
-const stats = openai.getMemoryStats();
+const stats = ai.getMemoryStats();
 console.log(`Total sessions: ${stats.totalSessions}`);
 console.log(`Total messages: ${stats.totalMessages}`);
 
 // Export memories for backup
-const backup = openai.exportSessionHistory();
+const backup = ai.exportSessionHistory();
 // Save this data somewhere safe!
 
 // Export specific session
-const sessionBackup = openai.exportSessionHistory("user123");
+const sessionBackup = ai.exportSessionHistory("user123");
 ```
 
 ### **Size Management**

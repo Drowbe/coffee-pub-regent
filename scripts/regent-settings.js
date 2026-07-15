@@ -4,7 +4,7 @@
 
 import { MODULE } from './const.js';
 
-const AI_GROUP = { name: "regent-ai", label: "Regent (AI)", hint: "OpenAI and Regent AI tools." };
+const AI_GROUP = { name: "regent-ai", label: "Regent (AI)", hint: "Provider settings and Regent AI tools." };
 
 function registerHeader(id, labelKey, hintKey, level = 'H2', group = AI_GROUP, scope = 'world') {
     game.settings.register(MODULE.ID, `heading${level}${id}`, {
@@ -46,6 +46,7 @@ export function registerRegentSettings(macroChoicesFromApi = null, chatCardTheme
 
     registerHeader('AISettings', 'headingH1AISettings-Label', 'headingH1AISettings-Hint', 'H1', AI_GROUP);
     registerHeader('AIGeneral', 'headingH2AIGeneral-Label', 'headingH2AIGeneral-Hint', 'H2', AI_GROUP);
+    registerHeader('AIShared', 'headingH3AIShared-Label', 'headingH3AIShared-Hint', 'H3', AI_GROUP);
 
     game.settings.register(MODULE.ID, 'openAIMacro', {
         name: MODULE.ID + '.openAIMacro-Label',
@@ -56,31 +57,15 @@ export function registerRegentSettings(macroChoicesFromApi = null, chatCardTheme
         choices: macroChoices,
         group: AI_GROUP
     });
-    game.settings.register(MODULE.ID, 'openAIAPIKey', {
-        name: MODULE.ID + '.openAIAPIKey-Label',
-        hint: MODULE.ID + '.openAIAPIKey-Hint',
+    game.settings.register(MODULE.ID, 'aiProvider', {
+        name: MODULE.ID + '.aiProvider-Label',
+        hint: MODULE.ID + '.aiProvider-Hint',
         scope: 'world', config: true, requiresReload: false,
-        type: String, default: '',
-        group: AI_GROUP
-    });
-    game.settings.register(MODULE.ID, 'openAIProjectId', {
-        name: MODULE.ID + '.openAIProjectId-Label',
-        hint: MODULE.ID + '.openAIProjectId-Hint',
-        scope: 'world', config: true, requiresReload: false,
-        type: String, default: '',
-        group: AI_GROUP
-    });
-    game.settings.register(MODULE.ID, 'openAIModel', {
-        name: MODULE.ID + '.openAIModel-Label',
-        hint: MODULE.ID + '.openAIModel-Hint',
-        scope: 'world', config: true, requiresReload: false,
-        type: String, default: 'gpt-4o-mini',
+        type: String,
+        default: 'openai',
         choices: {
-            'gpt-4o': 'GPT-4o',
-            'gpt-4o-mini': 'GPT-4o Mini',
-            'gpt-4-turbo': 'GPT-4 Turbo',
-            'gpt-4': 'GPT-4',
-            'gpt-3.5-turbo': 'GPT-3.5 Turbo'
+            openai: 'OpenAI',
+            anthropic: 'Anthropic (Claude)'
         },
         group: AI_GROUP
     });
@@ -123,6 +108,58 @@ export function registerRegentSettings(macroChoicesFromApi = null, chatCardTheme
         scope: 'world', config: true, requiresReload: true,
         type: Number, default: 1,
         range: { min: 0, max: 2, step: 0.1 },
+        group: AI_GROUP
+    });
+
+    registerHeader('AIOpenAI', 'headingH3AIOpenAI-Label', 'headingH3AIOpenAI-Hint', 'H3', AI_GROUP);
+    game.settings.register(MODULE.ID, 'openAIAPIKey', {
+        name: MODULE.ID + '.openAIAPIKey-Label',
+        hint: MODULE.ID + '.openAIAPIKey-Hint',
+        scope: 'world', config: true, requiresReload: false,
+        type: String, default: '',
+        group: AI_GROUP
+    });
+    game.settings.register(MODULE.ID, 'openAIProjectId', {
+        name: MODULE.ID + '.openAIProjectId-Label',
+        hint: MODULE.ID + '.openAIProjectId-Hint',
+        scope: 'world', config: true, requiresReload: false,
+        type: String, default: '',
+        group: AI_GROUP
+    });
+    game.settings.register(MODULE.ID, 'openAIModel', {
+        name: MODULE.ID + '.openAIModel-Label',
+        hint: MODULE.ID + '.openAIModel-Hint',
+        scope: 'world', config: true, requiresReload: false,
+        type: String, default: 'gpt-4o-mini',
+        choices: {
+            'gpt-4o': 'GPT-4o',
+            'gpt-4o-mini': 'GPT-4o Mini',
+            'gpt-4-turbo': 'GPT-4 Turbo',
+            'gpt-4': 'GPT-4',
+            'gpt-3.5-turbo': 'GPT-3.5 Turbo'
+        },
+        group: AI_GROUP
+    });
+
+    registerHeader('AIAnthropic', 'headingH3AIAnthropic-Label', 'headingH3AIAnthropic-Hint', 'H3', AI_GROUP);
+    game.settings.register(MODULE.ID, 'anthropicAPIKey', {
+        name: MODULE.ID + '.anthropicAPIKey-Label',
+        hint: MODULE.ID + '.anthropicAPIKey-Hint',
+        scope: 'world', config: true, requiresReload: false,
+        type: String, default: '',
+        group: AI_GROUP
+    });
+    game.settings.register(MODULE.ID, 'anthropicModel', {
+        name: MODULE.ID + '.anthropicModel-Label',
+        hint: MODULE.ID + '.anthropicModel-Hint',
+        scope: 'world', config: true, requiresReload: false,
+        type: String, default: 'claude-haiku-4-5',
+        choices: {
+            'claude-fable-5': 'Claude Fable 5',
+            'claude-opus-4-8': 'Claude Opus 4.8',
+            'claude-sonnet-5': 'Claude Sonnet 5',
+            'claude-haiku-4-5': 'Claude Haiku 4.5'
+        },
         group: AI_GROUP
     });
     game.settings.register(MODULE.ID, 'chatCardTheme', {

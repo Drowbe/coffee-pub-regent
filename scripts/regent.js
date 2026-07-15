@@ -4,7 +4,7 @@
 
 import { MODULE, REGENT } from './const.js';
 import { postConsoleAndNotification } from './api-core.js';
-import { OpenAIAPI } from './api-openai.js';
+import { RegentAIAPI } from './api-openai.js';
 
 async function playSoundSafe(sound, volume = 0.5) {
     try {
@@ -169,10 +169,10 @@ export async function buildQueryCard(question, queryWindow, queryContext = '') {
         scrollToBottom();
         await playSoundSafe(window.COFFEEPUB?.SOUNDPOP01, window.COFFEEPUB?.SOUNDVOLUMESOFT);
 
-        const openAIResponse = await OpenAIAPI.getOpenAIReplyAsHtml(strQuestion, { useConversationHistory: false });
+        const aiResponse = await RegentAIAPI.getAIReplyAsHtml(strQuestion, { useConversationHistory: false });
         queryWindow.removeProcessingMessage(requestId);
-        const jsonCheck = cleanAndValidateJSON(openAIResponse.content || openAIResponse);
-        strAnswer = jsonCheck.isValid ? jsonCheck.cleaned : (openAIResponse.content || openAIResponse);
+        const jsonCheck = cleanAndValidateJSON(aiResponse.content || aiResponse);
+        strAnswer = jsonCheck.isValid ? jsonCheck.cleaned : (aiResponse.content || aiResponse);
 
         const messageId = Date.now();
         CARDDATA = {
@@ -180,8 +180,8 @@ export async function buildQueryCard(question, queryWindow, queryContext = '') {
             strSpeakerIcon: "fa-crystal-ball", strHeaderStlye: "regent-message-header-answer",
             strSpeakerName: "Regent", strMessageIntro: "", strMessageContent: strAnswer,
             messageId, blnIsJSON: jsonCheck.isValid,
-            tokenInfo: openAIResponse.usage ? `${openAIResponse.usage.total_tokens} Tokens` : null,
-            cost: openAIResponse.cost ? openAIResponse.cost.toFixed(4) : null
+            tokenInfo: aiResponse.usage ? `${aiResponse.usage.total_tokens} Tokens` : null,
+            cost: aiResponse.cost ? aiResponse.cost.toFixed(4) : null
         };
         queryWindow.displayMessage(template(CARDDATA));
         scrollToBottom();

@@ -3,15 +3,16 @@
 // ==================================================================
 
 import { registerWindowQueryPartials } from './window-query-registration.js';
-import { OpenAIAPI } from './api-openai.js';
+import { OpenAIAPI, RegentAIAPI } from './api-openai.js';
 import { buildButtonEventRegent } from './regent.js';
 import { registerRegentSettings } from './regent-settings.js';
 
 async function onReady() {
-    // Expose OpenAI API for other modules (e.g. dependents that want AI without implementing their own)
+    // Expose Regent AI API for other modules; keep openai alias for backward compatibility.
     const regentModule = game.modules.get('coffee-pub-regent');
     if (regentModule) {
         regentModule.api = regentModule.api || {};
+        regentModule.api.ai = RegentAIAPI;
         regentModule.api.openai = OpenAIAPI;
     }
 
@@ -23,7 +24,7 @@ async function onReady() {
     registerRegentSettings(macroChoices, chatCardThemeChoices);
 
     await registerWindowQueryPartials();
-    OpenAIAPI.initializeMemory();
+    RegentAIAPI.initializeMemory();
 
     if (!api?.registerToolbarTool) return;
 
