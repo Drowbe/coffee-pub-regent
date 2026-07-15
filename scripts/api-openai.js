@@ -189,6 +189,30 @@ export class RegentAIAPI {
         return game.settings.get(MODULE.ID, 'openAIModel');
     }
 
+    static getCampaignContextPrompt() {
+        const promptContext = game.modules.get('coffee-pub-blacksmith')?.api?.campaign?.getPromptContext?.() || {};
+        const parts = [];
+
+        if (promptContext.campaignName) parts.push(`Campaign name: ${promptContext.campaignName}`);
+        if (promptContext.rulesVersion) parts.push(`Rules version: ${promptContext.rulesVersion}`);
+        if (promptContext.rulebooks) parts.push(`Rulebooks: ${promptContext.rulebooks}`);
+        if (promptContext.partyName) parts.push(`Party name: ${promptContext.partyName}`);
+        if (promptContext.partySize) parts.push(`Party size: ${promptContext.partySize}`);
+        if (promptContext.partyLevel) parts.push(`Party level: ${promptContext.partyLevel}`);
+        if (promptContext.partyMakeup) parts.push(`Party makeup: ${promptContext.partyMakeup}`);
+        if (promptContext.partyClasses) parts.push(`Party classes: ${promptContext.partyClasses}`);
+        if (promptContext.realm) parts.push(`Realm: ${promptContext.realm}`);
+        if (promptContext.region) parts.push(`Region: ${promptContext.region}`);
+        if (promptContext.site) parts.push(`Site: ${promptContext.site}`);
+        if (promptContext.area) parts.push(`Area: ${promptContext.area}`);
+        if (promptContext.narrativeFolder) parts.push(`Default narrative folder: ${promptContext.narrativeFolder}`);
+        if (promptContext.encounterFolder) parts.push(`Default encounter folder: ${promptContext.encounterFolder}`);
+
+        if (parts.length === 0) return '';
+
+        return `\n\nUse the following Blacksmith campaign context as authoritative when relevant. Do not contradict it unless the user explicitly overrides it.\n\n${parts.join('\n')}`;
+    }
+
     static getMaxOutputTokens() {
         const configured = Number(getSettingSafely(MODULE.ID, 'openAIMaxOutputTokens', this.DEFAULT_MAX_OUTPUT_TOKENS));
         if (!Number.isFinite(configured)) return this.DEFAULT_MAX_OUTPUT_TOKENS;
@@ -210,7 +234,8 @@ export class RegentAIAPI {
         const provider = this.getProvider();
         const apiKey = this.getProviderApiKey(provider);
         const model = this.getProviderModel(provider);
-        const prompt = game.settings.get(MODULE.ID, 'openAIPrompt');
+        const basePrompt = game.settings.get(MODULE.ID, 'openAIPrompt');
+        const prompt = `${basePrompt || ''}${this.getCampaignContextPrompt()}`;
         const temperature = game.settings.get(MODULE.ID, 'openAITemperature');
         const promptMessage = { role: 'system', content: prompt.trim() };
         const queryMessage = { role: 'user', content: query };
@@ -220,8 +245,8 @@ export class RegentAIAPI {
             postConsoleAndNotification(MODULE.NAME, `Invalid API key:`, apiKey, true, false);
             return "My mind is clouded. Invalid API key configuration.";
         }
-        if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') {
-            postConsoleAndNotification(MODULE.NAME, `Invalid prompt:`, prompt, true, false);
+        if (!basePrompt || typeof basePrompt !== 'string' || basePrompt.trim() === '') {
+            postConsoleAndNotification(MODULE.NAME, `Invalid prompt:`, basePrompt, true, false);
             return "My mind is clouded. Invalid prompt configuration.";
         }
 

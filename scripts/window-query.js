@@ -1660,7 +1660,7 @@ export class BlacksmithWindowQuery extends WindowQueryBase {
         var strPromptEncounter = "";
         var strFinalPrompt = "";
 
-        var strCampaignName = "The Burden of Knowledge";
+        var strCampaignName = game.modules.get('coffee-pub-blacksmith')?.api?.campaign?.getCore?.()?.name || game.world?.title || "This campaign";
 
         var strGmContext = "";
         var strPlayerContext = "";
