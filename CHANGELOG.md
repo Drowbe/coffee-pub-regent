@@ -5,8 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [13.0.5]
 
-## [13.0.3]
+### Added
+
+- **Provider selection**: Regent AI settings now support both **OpenAI** and **Anthropic (Claude)** text generation, with provider-specific API keys and model choices under **Regent (AI)**.
+- **Provider-neutral API surface**: Regent now exposes **`module.api.ai`** as the primary AI interface while keeping **`module.api.openai`** as a backward-compatible alias for existing integrations.
+- **Anthropic browser support**: Direct browser calls to Anthropic now opt into browser access mode so Foundry client-side requests can succeed without a separate SDK wrapper.
+
+### Changed
+
+- **`scripts/api-openai.js`** now acts as a provider-aware Regent AI layer instead of an OpenAI-only implementation. Text requests are routed to either **OpenAI** or **Anthropic**, with normalized response handling for usage and content formatting.
+- **Image generation removed**: Regent no longer exposes or documents the old OpenAI image-generation helper. The live AI surface is now text-focused only.
+- **AI settings layout**: The Regent AI settings UI is now grouped into **Shared**, **OpenAI**, and **Anthropic** sections so provider-specific controls are easier to scan.
+- **Campaign context sourcing**: Regent no longer invents parallel campaign-context settings. AI prompts now pull normalized campaign, geography, party, rulebook, and journal-default context from **`game.modules.get('coffee-pub-blacksmith')?.api?.campaign`**.
+- **Prompt composition**: Regent worksheet prompts now use Blacksmith campaign data for the campaign name instead of a hardcoded Regent value.
+- **Prompt semantics**: The base AI prompt is now sent as a **system** message rather than a user message.
+- **Request size and history defaults**: Added configurable **Max Output Tokens** (default **1200**), reduced default **Context Length** to **4**, and stopped worksheet submissions from dragging prior global conversation history into one-shot prompt generation.
+- **Retry behavior**: API retry handling is less punishing under failure/rate-limit conditions and now surfaces richer error messages, including the underlying provider response for **429** errors.
+
+### Fixed
+
+- **Blacksmith settings leak**: Removed the remaining direct reads of Blacksmith-owned settings from Regent’s narrative template data path. Regent now respects the documented API boundary and no longer crashes on missing Blacksmith settings such as **`narrativeDefaultCardImage`**.
+- **Duplicate submits**: Regent now prevents overlapping AI submissions from the same window, reducing accidental stacked requests and redundant rate-limit pressure.
+- **Processing UI cleanup**: The transient **Thinking...** card is now tracked and removed cleanly on both success and failure instead of accumulating stale processing messages in the output window.
+- **Anthropic integration**: Direct Claude requests now work in Foundry’s browser context instead of failing immediately with a CORS/preflight error when browser access opt-in is required.
+
+### Documentation
+
+- **`README.md`** updated to describe provider-based AI configuration instead of OpenAI-only setup.
+- **`documentation/api-openai.md`** updated to describe the Regent AI API, provider-neutral access through **`api.ai`**, and the removal of image-generation support.
+
+## [13.0.4]
 
 ### Fixed
 
