@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **Chat cards now use the Blacksmith Chat Cards API.** Both posting sites — **Send to Chat** and the GM **Regent Report** whisper — compose Blacksmith-owned parts through **`chatCards.post()`** instead of building card HTML. Regent no longer writes the card wrapper, the theme class, or the `coffeepub-hide-header` marker; Blacksmith owns all three.
+- **`chatCardTheme` now stores a theme id** rather than a CSS class name, matching what `post()` expects. Worlds that ran an earlier Regent keep working: **`getChatCardThemeId()`** in `scripts/blacksmith-bridge.js` normalises a stored class name back to its id on read, so no migration script is needed.
+- **The GM whisper is one message to all GMs** instead of one message per GM.
+
+### Added
+
+- **`scripts/card-composer.js`**: converts the model's reply into a parts composition. The reply is **hybrid** — headings and bold arrive as HTML tags, emphasis as `*marks*`, rules and tables as markdown, and `<br><br>` doing the work `<p>` was asked to do — so the walk is line-oriented and parses both. Headings become `section` parts, an ability-score row becomes `tiles`, and paragraphs/lists/tables/quotes become `prose` blocks.
+  - **AI output is never passed on as HTML.** The `richtext` part is enriched rather than sanitised, and it inherits its safety from a document having a human author — which model output does not. Everything here ends as escaped literals.
+  - **Enricher syntax in model output is inert.** An `@UUID[...]` or `[[/r 2d6]]` the model invents renders as visible characters rather than a broken link or an unrequested roll button. Worth revisiting only if Regent ever feeds the model real uuids.
+  - **The walk degrades rather than drops.** An element with no mapping contributes its text as a paragraph, and a parse failure falls back to the whole reply as plain text.
+
+### Requires
+
+- **Blacksmith with `identity`, `ribbon` and `tiles` on the text pipeline** (Blacksmith `[Unreleased]` as of 2026-08-16, after `13.17.2`). Regent passes `{ literal }` to `identity.name` and to `tiles` captions and values, which is only correct once those fields are pipelined — on an older Blacksmith they are Handlebars-escaped and a literal renders as `[object Object]`. Bump the `coffee-pub-blacksmith` minimum in `module.json` once that Blacksmith ships.
+
+### Fixed
+
+- **GM Regent Report rendered unstyled in chat.** It was posted with `regent-message-header-answer` markup, but every rule for those classes is scoped to `#coffee-pub-regent-wrapper` and so never applied outside the Regent window. As a themed card it now picks up Blacksmith's card styling.
+
 ## [13.0.5]
 
 ### Added

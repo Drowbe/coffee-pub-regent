@@ -69,3 +69,44 @@ export async function createJournalEntryFromBlacksmith(journalData) {
     postConsoleAndNotification(MODULE.NAME, err.message, '', false, true);
     throw err;
 }
+
+// ==================================================================
+// ===== CHAT CARDS =================================================
+// ==================================================================
+
+/** @returns {object|null} Blacksmith Chat Cards API, or null if unavailable. */
+export function getChatCards() {
+    return getBlacksmithApi()?.chatCards ?? null;
+}
+
+/**
+ * The theme id to pass to `chatCards.post({ theme })`.
+ *
+ * The chokepoint for one migration wrinkle: the `chatCardTheme` setting used to
+ * be built from `getThemeChoicesWithClassNames()`, so every world that ran an
+ * earlier Regent has a CSS CLASS NAME stored ('theme-default', 'theme-blue')
+ * where `post()` now wants an ID ('default', 'blue'). Normalising on read means
+ * no migration script and no reason for a caller to know the difference.
+ *
+ * Resolution order: a stored value that is already a valid id wins; otherwise a
+ * stored class name is matched back to its theme; otherwise null, which lets
+ * `post()` fall through to the world default rather than pinning a guess.
+ *
+ * @returns {string|null}
+ */
+export function getChatCardThemeId() {
+    let stored = null;
+    try {
+        stored = game.settings.get(MODULE.ID, 'chatCardTheme');
+    } catch (_) { /* setting not registered yet */ }
+    if (!stored) return null;
+
+    const chatCards = getChatCards();
+    if (!chatCards?.getThemes) return null;
+
+    const themes = chatCards.getThemes('card') ?? [];
+    if (themes.some((t) => t.id === stored)) return stored;
+
+    const byClassName = themes.find((t) => t.className === stored);
+    return byClassName ? byClassName.id : null;
+}

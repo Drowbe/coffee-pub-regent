@@ -39,9 +39,9 @@ function getMacroChoicesLocal() {
 /**
  * Register Regent settings.
  * @param {Object|null} [macroChoicesFromApi] - Optional macro choices from `mod.api.BLACKSMITH` (ready hook)
- * @param {Object} [chatCardThemeChoices] - Chat card theme choices (CSS class -> name) from chatCards.getThemeChoicesWithClassNames('card')
+ * @param {Object} [chatCardThemeChoices] - Chat card theme choices (theme id -> name) from chatCards.getThemeChoices('card')
  */
-export function registerRegentSettings(macroChoicesFromApi = null, chatCardThemeChoices = { 'theme-default': 'Default' }) {
+export function registerRegentSettings(macroChoicesFromApi = null, chatCardThemeChoices = { 'default': 'Default' }) {
     const macroChoices = macroChoicesFromApi ?? getMacroChoicesLocal();
 
     registerHeader('AISettings', 'headingH1AISettings-Label', 'headingH1AISettings-Hint', 'H1', AI_GROUP);
@@ -167,7 +167,7 @@ export function registerRegentSettings(macroChoicesFromApi = null, chatCardTheme
         hint: 'Theme for Regent messages sent to chat (Blacksmith Chat Cards).',
         scope: 'world', config: true, requiresReload: false,
         type: String,
-        default: 'theme-default',
+        default: 'default',
         choices: chatCardThemeChoices,
         group: AI_GROUP
     });

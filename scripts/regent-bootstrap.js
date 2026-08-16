@@ -18,7 +18,9 @@ async function onReady() {
 
     const api = game.modules.get('coffee-pub-blacksmith')?.api;
     const macroChoices = api?.BLACKSMITH?.arrMacroChoices ?? null;
-    const chatCardThemeChoices = api?.chatCards?.getThemeChoicesWithClassNames?.('card') ?? { 'theme-default': 'Default' };
+    // Theme IDS, not class names: post() takes an id. Worlds that ran an earlier
+    // Regent still hold a class name here; getChatCardThemeId() normalises on read.
+    const chatCardThemeChoices = api?.chatCards?.getThemeChoices?.('card') ?? { 'default': 'Default' };
 
     // Register Regent settings (macro dropdown and chat card theme use API when available)
     registerRegentSettings(macroChoices, chatCardThemeChoices);

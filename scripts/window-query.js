@@ -4,7 +4,8 @@
 
 import { MODULE, REGENT } from './const.js';
 import { postConsoleAndNotification } from './api-core.js';
-import { playSound, trimString, createJournalEntryFromBlacksmith } from './blacksmith-bridge.js';
+import { playSound, trimString, createJournalEntryFromBlacksmith, getChatCards, getChatCardThemeId } from './blacksmith-bridge.js';
+import { composePartsFromHtml } from './card-composer.js';
 import { getCachedTemplate } from './regent.js';
 import { RegentWindowBaseV2 } from './regent-window-base-v2.js';
 import { registerEncounterWorksheetGlobals } from './regent-encounter-worksheet.js';
@@ -14,6 +15,64 @@ import { TokenHandler } from './token-handler.js';
 /** Blacksmith core shell (template path only — not a script import). See wiki API: Window. */
 const BLACKSMITH_WINDOW_SHELL = 'modules/coffee-pub-blacksmith/templates/window-template.hbs';
 const REGENT_WINDOW_SHELL = 'modules/coffee-pub-regent/templates/regent-window-shell.hbs';
+
+// ==================================================================
+// ===== CHAT CARDS =================================================
+// ==================================================================
+
+/**
+ * Post a Regent chat card through Blacksmith. Regent never writes card HTML;
+ * it names a composition of Blacksmith-owned parts and supplies their content.
+ *
+ * The theme is resolved here so no caller has to know that the stored setting
+ * may still be a legacy CSS class name — see getChatCardThemeId().
+ *
+ * @param {{parts: Array<object>, type?: string, whisper?: Array<string>}} options
+ * @returns {Promise<ChatMessage|null>}
+ */
+async function postRegentCard({ parts, type = null, whisper } = {}) {
+    const chatCards = getChatCards();
+    if (!chatCards?.post) {
+        postConsoleAndNotification(MODULE.NAME, 'Blacksmith Chat Cards API unavailable; cannot post card.', '', false, true);
+        return null;
+    }
+    const theme = getChatCardThemeId();
+    return chatCards.post({
+        moduleId: MODULE.ID,
+        type,
+        parts,
+        ...(theme ? { theme } : {}),
+        ...(whisper ? { whisper } : {})
+    });
+}
+
+/**
+ * Turn the collected GM report entries into parts: each heading becomes a
+ * `section` divider, and the label/value entries beneath it become one prose
+ * table. Values are user-typed — scene titles, prompt details — so every one
+ * goes through `literal`, which escapes it and keeps enricher syntax inert.
+ *
+ * @param {Array<{heading?: string, label?: string, value?: string}>} entries
+ * @returns {Array<object>}
+ */
+function buildGmReportParts(entries = []) {
+    const parts = [];
+    let rows = [];
+    const flush = () => {
+        if (rows.length) parts.push({ part: 'prose', blocks: [{ type: 'table', rows }] });
+        rows = [];
+    };
+    for (const entry of entries) {
+        if (entry.heading) {
+            flush();
+            parts.push({ part: 'section', icon: 'fa-solid fa-angles-right', label: entry.heading });
+        } else {
+            rows.push([{ literal: entry.label }, { literal: entry.value }]);
+        }
+    }
+    flush();
+    return parts;
+}
 
 /**
  * Use mod.api.BlacksmithWindowBaseV2 or getWindowBaseV2() per Blacksmith Window API — do not import scripts/window-base-v2.js.
@@ -1574,11 +1633,12 @@ export class BlacksmithWindowQuery extends WindowQueryBase {
         postConsoleAndNotification(MODULE.NAME, "Content:", rawContent, true, false);
         playSound(window.COFFEEPUB?.SOUNDPOP02, window.COFFEEPUB?.SOUNDVOLUMESOFT);
         if (rawContent && rawContent.trim() !== "") {
-            const themeClassName = game.settings.get(MODULE.ID, 'chatCardTheme') || 'theme-default';
-            const cardHtml = `<span style="visibility: hidden">coffeepub-hide-header</span><div class="blacksmith-card ${themeClassName}"><div class="card-header"><i class="fas fa-crystal-ball"></i> Regent</div><div class="section-content">${rawContent}</div></div>`;
-            await ChatMessage.create({
-                content: cardHtml,
-                speaker: ChatMessage.getSpeaker()
+            await postRegentCard({
+                type: 'regent-answer',
+                parts: [
+                    { part: 'header', icon: 'fa-solid fa-crystal-ball', title: 'Regent' },
+                    ...composePartsFromHtml(rawContent)
+                ]
             });
         } else {
             postConsoleAndNotification(MODULE.NAME, "No content found to send to chat.", "", false, false);
@@ -1663,6 +1723,10 @@ export class BlacksmithWindowQuery extends WindowQueryBase {
         var strCampaignName = game.modules.get('coffee-pub-blacksmith')?.api?.campaign?.getCore?.()?.name || game.world?.title || "This campaign";
 
         var strGmContext = "";
+        // The same GM report, kept as data as well as HTML. The HTML feeds the
+        // AI prompt; the rows feed the chat card, which is composed rather than
+        // written. Both are filled by gmRow() so they cannot drift apart.
+        const gmContextRows = [];
         var strPlayerContext = "";
         var strGMSimpleContext = "";
         var strPlayerSimpleContext = "";
@@ -2442,6 +2506,18 @@ Key encounter requirements:`;
             }
         };
 
+        // Append one GM report entry to both representations. A null value means
+        // the label is a section heading rather than a label/value pair.
+        const gmRow = (label, value) => {
+            strGmContext += addTableRow(label, value);
+            const heading = String(label).replace(/<[^>]+>/g, '').trim();
+            if (value || value === true) {
+                gmContextRows.push({ label: heading, value: String(value) });
+            } else {
+                gmContextRows.push({ heading });
+            }
+        };
+
         // If they added something to the input, use it.
         if (inputMessage){
             // Normal Question
@@ -2449,8 +2525,8 @@ Key encounter requirements:`;
             // Prompt
             strFinalPrompt += inputMessage + `\n\n`;
             // GM Context
-            strGmContext += addTableRow('<b>QUESTION</b>', null);
-            strGmContext += addTableRow('Asked', inputMessage);
+            gmRow('<b>QUESTION</b>', null);
+            gmRow('Asked', inputMessage);
             strGMSimpleContext = `<b>Question:</b> "` + inputMessage + `"`;
             // Player Context
             strPlayerContext += addTableRow('<b>QUESTION</b>', null);
@@ -2466,20 +2542,20 @@ Key encounter requirements:`;
                         postConsoleAndNotification(MODULE.NAME, "SWITCH: Encounter", "", true, false);
                         strFinalPrompt += strPromtGMMindset + "\n\n" + strPromptEncounter;
                         // GM Context
-                        strGmContext += addTableRow('<b>GENERAL</b>', null);
-                        strGmContext += addTableRow('Workspace', this.workspaceId);
-                        strGmContext += addTableRow('<b>ENCOUNTER</b>', null);
-                        strGmContext += addTableRow('Folder Name', inputFolderName);
-                        strGmContext += addTableRow('Scene Title', inputSceneTitle);
-                        strGmContext += addTableRow('Card Image Type', optionCardImage);
-                        strGmContext += addTableRow('Card Image Path', inputCardImage);
-                        strGmContext += addTableRow('Location', inputLocation);
-                        strGmContext += addTableRow('Scene Parent', inputSceneParent);
-                        strGmContext += addTableRow('Scene Area', inputSceneArea);
-                        strGmContext += addTableRow('Environment', inputEnvironment);
-                        strGmContext += addTableRow('Prep Title', inputPrepTitle);
-                        strGmContext += addTableRow('Prep Description', inputPrepDescription);
-                        strGmContext += addTableRow('Prep Details', inputPrepDetails);
+                        gmRow('<b>GENERAL</b>', null);
+                        gmRow('Workspace', this.workspaceId);
+                        gmRow('<b>ENCOUNTER</b>', null);
+                        gmRow('Folder Name', inputFolderName);
+                        gmRow('Scene Title', inputSceneTitle);
+                        gmRow('Card Image Type', optionCardImage);
+                        gmRow('Card Image Path', inputCardImage);
+                        gmRow('Location', inputLocation);
+                        gmRow('Scene Parent', inputSceneParent);
+                        gmRow('Scene Area', inputSceneArea);
+                        gmRow('Environment', inputEnvironment);
+                        gmRow('Prep Title', inputPrepTitle);
+                        gmRow('Prep Description', inputPrepDescription);
+                        gmRow('Prep Details', inputPrepDetails);
                         
                         // Simple context for encounter
                         strGMSimpleContext = `<p><b>Generating encounter</b> for "${inputSceneTitle || 'unnamed encounter'}"`;
@@ -2496,20 +2572,20 @@ Key encounter requirements:`;
                         postConsoleAndNotification(MODULE.NAME, "SWITCH: Narrative", "", true, false);
                         strFinalPrompt += strPromtGMMindset + "\n\n" + strPromptNarration;
                         // GM Context
-                        strGmContext += addTableRow('<b>GENERAL</b>', null);
-                        strGmContext += addTableRow('Workspace', this.workspaceId);
-                        strGmContext += addTableRow('<b>NARRATIVE</b>', null);
-                        strGmContext += addTableRow('Folder Name', inputFolderName);
-                        strGmContext += addTableRow('Scene Title', inputSceneTitle);
-                        strGmContext += addTableRow('Card Image Type', optionCardImage);
-                        strGmContext += addTableRow('Card Image Path', inputCardImage);
-                        strGmContext += addTableRow('Location', inputLocation);
-                        strGmContext += addTableRow('Scene Parent', inputSceneParent);
-                        strGmContext += addTableRow('Scene Area', inputSceneArea);
-                        strGmContext += addTableRow('Environment', inputEnvironment);
-                        strGmContext += addTableRow('Prep Title', inputPrepTitle);
-                        strGmContext += addTableRow('Prep Description', inputPrepDescription);
-                        strGmContext += addTableRow('Prep Details', inputPrepDetails);
+                        gmRow('<b>GENERAL</b>', null);
+                        gmRow('Workspace', this.workspaceId);
+                        gmRow('<b>NARRATIVE</b>', null);
+                        gmRow('Folder Name', inputFolderName);
+                        gmRow('Scene Title', inputSceneTitle);
+                        gmRow('Card Image Type', optionCardImage);
+                        gmRow('Card Image Path', inputCardImage);
+                        gmRow('Location', inputLocation);
+                        gmRow('Scene Parent', inputSceneParent);
+                        gmRow('Scene Area', inputSceneArea);
+                        gmRow('Environment', inputEnvironment);
+                        gmRow('Prep Title', inputPrepTitle);
+                        gmRow('Prep Description', inputPrepDescription);
+                        gmRow('Prep Details', inputPrepDetails);
 
                         // Simple context for narrative
                         strGMSimpleContext = `<p><b>Generating narrative</b> for "${inputSceneTitle || 'unnamed scene'}"`;
@@ -2527,13 +2603,13 @@ Key encounter requirements:`;
                         strPromtGMMindset = strPromtGMMindset + "\n\nYou going to provide context about features, spells, rules, actions or other details for the players. Use the data that follows to answer the question being clear and instructional.";
                         strFinalPrompt += strPromtGMMindset + "\n\n" + strPromtFeatures;
                         // GM Context
-                        strGmContext += addTableRow('<b>GENERAL</b>', null);
-                        strGmContext += addTableRow('Workspace', this.workspaceId);
-                        strGmContext += addTableRow('<b>SRD LOOKUP</b>', null);
-                        strGmContext += addTableRow('Feature', optionFeatures);
-                        strGmContext += addTableRow('Details', inputFeaturesDetails);
-                        strGmContext += addTableRow('Rules', blnMechanicsExplain);
-                        strGmContext += addTableRow('Tutorial', blnMechanicsHowTo);
+                        gmRow('<b>GENERAL</b>', null);
+                        gmRow('Workspace', this.workspaceId);
+                        gmRow('<b>SRD LOOKUP</b>', null);
+                        gmRow('Feature', optionFeatures);
+                        gmRow('Details', inputFeaturesDetails);
+                        gmRow('Rules', blnMechanicsExplain);
+                        gmRow('Tutorial', blnMechanicsHowTo);
                         // Player Context
                         strPlayerContext += addTableRow('<b>SRD LOOKUP</b>', null);
                         strPlayerContext += addTableRow('Feature', optionFeatures);
@@ -2562,22 +2638,22 @@ Key encounter requirements:`;
                         strFinalPrompt += "\n\n" + strPromtBackstory; // Backstory of the Monster, NPC, Item, Location, etc.
                         strFinalPrompt += "\n\n" + strPromtGMDetails; //The GM Details prompts
                         // GM Context
-                        strGmContext += addTableRow('<b>GENERAL</b>', null);
-                        strGmContext += addTableRow('Workspace', this.workspaceId);
-                        strGmContext += addTableRow('<b>SKILL CHECK</b>', null);
-                        strGmContext += addTableRow('Roll Skill', blnSkillRoll);
-                        strGmContext += addTableRow('Skill', optionSkill);
-                        strGmContext += addTableRow('Dice Value', inputDiceValue);
-                        strGmContext += addTableRow('Lookup Type', optionType);
-                        strGmContext += addTableRow('Name', inputContextName);
-                        strGmContext += addTableRow('Additional Details', inputContextDetails);
-                        strGmContext += addTableRow('Description', blnGenerateDescription);
-                        strGmContext += addTableRow('Details', blnGenerateDetails);
-                        strGmContext += addTableRow('Stats', blnGenerateStats);
-                        strGmContext += addTableRow('Backstory', blnGenerateBackstory);
-                        strGmContext += addTableRow('GM Details', blnGMDetails);
-                        strGmContext += addTableRow('Rules', blnMechanicsExplain);
-                        strGmContext += addTableRow('Tutorial', blnMechanicsHowTo);
+                        gmRow('<b>GENERAL</b>', null);
+                        gmRow('Workspace', this.workspaceId);
+                        gmRow('<b>SKILL CHECK</b>', null);
+                        gmRow('Roll Skill', blnSkillRoll);
+                        gmRow('Skill', optionSkill);
+                        gmRow('Dice Value', inputDiceValue);
+                        gmRow('Lookup Type', optionType);
+                        gmRow('Name', inputContextName);
+                        gmRow('Additional Details', inputContextDetails);
+                        gmRow('Description', blnGenerateDescription);
+                        gmRow('Details', blnGenerateDetails);
+                        gmRow('Stats', blnGenerateStats);
+                        gmRow('Backstory', blnGenerateBackstory);
+                        gmRow('GM Details', blnGMDetails);
+                        gmRow('Rules', blnMechanicsExplain);
+                        gmRow('Tutorial', blnMechanicsHowTo);
                         // Player Context
                         // none for the player
                         
@@ -2716,26 +2792,19 @@ Please format the response using <p> for paragraphs (not <br> or <br><br>), <h4>
                 // et the GM know that the user is using the Regent to generate a prompt.
                 if (!game.user.isGM) {
                     postConsoleAndNotification(MODULE.NAME, "Someone is using the Regent to generate a prompt.", "", true, false);
-                    // Whisper the final prompt to the GM
-                    const gmUsers = game.users.filter(user => user.isGM);
-                    for (const gmUser of gmUsers) {
-                        await ChatMessage.create({
-                            content: `<div id="regent-message-header" class="regent-message-header-answer">
-                                        <i class="fas fa-crystal-ball"></i>
-                                        <span class="regent-message-speaker">
-                                            Regent Report
-                                        </span>
-                                    </div>
-                                    <div id="regent-message-content" data-message-id="">
-                                        <h4>Player Using Regent</h4>
-                                        <p><b>${game.user.name}</b><br></p>
-                                        <h4>Input Message</h4>
-                                        <p>${inputMessage}<br></p>
-                                        <h4>Details</h4>
-                                        ${strGmContext}
-                                    </div>`,
-                            whisper: [gmUser.id],
-                            blind: true
+                    // One whisper to every GM rather than one message each.
+                    const gmUserIds = game.users.filter(user => user.isGM).map(user => user.id);
+                    if (gmUserIds.length) {
+                        await postRegentCard({
+                            type: 'regent-report',
+                            whisper: gmUserIds,
+                            parts: [
+                                { part: 'header', icon: 'fa-solid fa-crystal-ball', title: 'Regent Report' },
+                                { part: 'identity', img: game.user.avatar, name: { literal: game.user.name }, subtitle: 'Consulted the Regent' },
+                                { part: 'section', icon: 'fa-solid fa-comment-question', label: 'Input Message' },
+                                { part: 'prose', blocks: [{ type: 'paragraph', text: { literal: inputMessage || '(none)' } }] },
+                                ...buildGmReportParts(gmContextRows)
+                            ]
                         });
                     }
                 }
