@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Removed
+
+- **`templates/partial-encounter-scripts.hbs`** — 969 lines of `<script>` inside a Handlebars partial, included by both the encounter and narrative workspaces, that **has never executed**. ApplicationV2 sets part content via `innerHTML`, and scripts inserted that way do not run; the port that fixed this moved all 13 functions into `scripts/regent-encounter-worksheet.js`, which registers each as a global, but the partial was left behind. Every function in it had a live counterpart, so nothing referenced the dead copy. It accounted for **73 KB — a third of the markup built on every window open**.
+- **`templates/partial-unified-header.hbs`** (Blacksmith skill-check dialog markup, `cpb-dialog-*`, never Regent's) and **`templates/partial-character-details.hbs`** — registered on every load, referenced from nowhere.
+
+### Changed
+
+- **Partial registration goes through `foundry.applications.handlebars.loadTemplates()`.** `window-query-registration.js` was 33 `await fetch(...)` calls in sequence, so every partial cost a serialised round trip during `ready`. The list is now a name → path map handed to the core loader, which fetches concurrently and skips anything already in `Handlebars.partials`.
+
+### Performance
+
+- **Opening the Regent window builds 140 KB of markup instead of 213 KB** (−34%), and the encounter and narrative workspaces are roughly half their previous size.
+
 ## [13.1.1]
 
 ### Changed
