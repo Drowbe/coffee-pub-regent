@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **The Regent window now extends Blacksmith's real base class.** `BlacksmithWindowBaseV2` is imported from **`/modules/coffee-pub-blacksmith/api/blacksmith-api.js`**, the supported bridge, and `BlacksmithWindowQuery` extends it unconditionally.
+  - The old `resolveWindowQueryBase()` read the base off `game.modules.get(...).api` at module evaluation time. Optional chaining kept it from throwing — Regent never hit the crash this pattern caused elsewhere — but `game` does not exist while module scripts evaluate, so `api` was always `undefined`. **The Blacksmith branches were dead code that never once ran**, and the "fallback" was the base 100% of the time.
+  - `data-action` handlers now take the instance Blacksmith passes as their third argument instead of reading the deprecated `_ref`, which points at whichever instance rendered last.
+  - **`rememberPosition: false`** is set, because Regent persists window bounds itself to a world setting. The base also persists to `localStorage` and restores in `_onFirstRender` — after the constructor — so with both on the base would silently win and move bounds from per-world to per-browser.
+
+### Removed
+
+- **`scripts/regent-window-base-v2.js`** and **`templates/regent-window-shell.hbs`** — a fork of Blacksmith's base and shell, kept as a fallback that was in fact the only path. Both are superseded by the bridge import; the shell differed from Blacksmith's only in comments and a default icon Regent overrides anyway.
+
+### Fixed
+
+- **Minimising the Regent window left a title bar over a full-size empty frame.** The forked base wrote size constraints as inline `min-height`, and Foundry's `minimize()` collapses a frame with inline `max-height` — CSS resolves min over max when both are inline, so the minimum won and `maximize()` never cleared it. Blacksmith's base publishes the same constraints as CSS custom properties, where the stylesheet can zero them for `.minimized`.
+- **A `document`-level click listener leaked for the session per window class.** The forked base attached one on first render and never removed it. Blacksmith's base binds per instance on `this.element`, so the listener dies with the frame and two open instances cannot steal each other's clicks.
+
+### Requires
+
+- **Blacksmith with `api/blacksmith-api.js` exporting the window base classes.** This is now a load-time dependency rather than a runtime one: if the import cannot resolve, Regent does not evaluate. Bump the `coffee-pub-blacksmith` minimum in `module.json` once that Blacksmith ships.
+
+### Notes
+
+- **HookManager `canCancel` needs no change here.** Regent registers one hook, `controlToken` in `scripts/token-handler.js`. It is not a `pre*` hook and vetoes nothing, so the new opt-in cancellation contract does not affect it.
+- **`api.inventory` and `api.importer` are unused** by Regent; the merge fix and the newly public importer need no action.
+
 ## [13.1.0]
 
 ### Changed

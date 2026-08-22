@@ -4,7 +4,9 @@ Wiki entry point: [Coffee Pub Blacksmith Wiki](https://github.com/Drowbe/coffee-
 
 ## One-liner (Regent / consumers)
 
-Use **`game.modules.get('coffee-pub-blacksmith').api.createJournalEntry`** for JSON → journal, and **`api.BlacksmithWindowBaseV2`** / **`api.getWindowBaseV2()`** for Application V2 subclasses — both are on **`mod.api` after `ready`**; **do not** import Blacksmith **`scripts/*`** for those behaviors. For “open this registered window,” use **`api.openWindow(windowId, options)`** (registry only).
+Use **`game.modules.get('coffee-pub-blacksmith').api.createJournalEntry`** for JSON → journal — that resolves after `init`, so `mod.api` is right. **Base classes are different:** import them from the bridge, **`/modules/coffee-pub-blacksmith/api/blacksmith-api.js`**. For “open this registered window,” use **`api.openWindow(windowId, options)`** (registry only).
+
+> **Corrected 2026-08-22.** Earlier revisions of this file said to read `BlacksmithWindowBaseV2` off `mod.api` at module top level. That cannot work: `extends` is evaluated when the module is evaluated, and `game` does not exist then. A bare `game.modules.get(...)` there throws, and ES modules cache a failed evaluation, so the throw disables the module for the whole session. Regent's optional-chained resolver never threw, but `api` was always undefined, so the local fork was the base every time and the `mod.api` branch never ran. Both the resolver and the fork are gone. The rule that **`scripts/*` paths are not a stable contract** still holds — the bridge is the supported path, and it is a real ES module.
 
 Authoritative Window doc: **[API: Window](https://github.com/Drowbe/coffee-pub-blacksmith/wiki/API:-Window)** (registry vs public base class, zone contract, template data).
 
@@ -31,22 +33,29 @@ Authoritative Window doc: **[API: Window](https://github.com/Drowbe/coffee-pub-b
 
 ## Application V2 Window API (summary — see wiki for full contract)
 
-Blacksmith exposes **two** related surfaces on **`game.modules.get('coffee-pub-blacksmith').api`** (after **`ready`**):
+Blacksmith exposes **two** related surfaces, reached **two different ways**:
 
-| Surface | Purpose |
-|---------|---------|
-| **Registry** — `registerWindow`, `unregisterWindow`, `openWindow`, `getRegisteredWindows`, `isWindowRegistered` | Register an **id** + **opener** so toolbars, macros, and other code open your window **without importing your class**. |
-| **Base class** — `BlacksmithWindowBaseV2` or `getWindowBaseV2()` | **Subclass** Blacksmith’s Application V2 base for zone template + shared behavior (scroll, delegation, size constraints). **Do not** deep-link `scripts/window-base-v2.js`. |
+| Surface | How to reach it | Purpose |
+|---------|-----------------|---------|
+| **Registry** — `registerWindow`, `unregisterWindow`, `openWindow`, `getRegisteredWindows`, `isWindowRegistered` | **`mod.api`**, after `init` | Register an **id** + **opener** so toolbars, macros, and other code open your window **without importing your class**. |
+| **Base classes** — `BlacksmithWindowBaseV2`, `BlacksmithToolWindowBaseV2`, plus `BLACKSMITH_WINDOW_STYLES` / `BLACKSMITH_TOOL_TITLEBARS` / `BLACKSMITH_TOOL_THEMES` | **`import` from `/modules/coffee-pub-blacksmith/api/blacksmith-api.js`** | **Subclass** Blacksmith’s Application V2 base for zone template + shared behavior (scroll, delegation, size constraints, position persistence). **Do not** deep-link `scripts/window-base.js`. |
 
-Regent registers and opens **`consult-regent`** via the registry; the query window **extends** the API base when it is available **when Regent’s `window-query.js` first runs** (typically requires **`BlacksmithWindowBaseV2` on `mod.api` by `init`**, not only `ready`), else **`RegentWindowBaseV2`** + **`regent-window-shell.hbs`**.
+The constants are the same objects as `api.windowStyles`, `api.toolTitlebars`, `api.toolThemes`.
+
+Regent registers and opens **`consult-regent`** via the registry, and `BlacksmithWindowQuery` **extends** `BlacksmithWindowBaseV2` unconditionally — no resolver, no fallback base, no fallback shell.
+
+**Two base behaviours worth knowing when subclassing:**
+
+- **Size constraints** are published as CSS custom properties (`--blacksmith-window-min-*`) against a `.blacksmith-window` marker class, never as inline `min-height`. Inline minima cannot be minimised away: Foundry's `minimize()` sets inline `max-height`, and CSS resolves min over max, so an inline minimum leaves a title bar on an empty full-size frame. Do not reintroduce one.
+- **Position persistence** is built in, to `localStorage` under `options.windowPositionKey`. Pass **`rememberPosition: false`** if you persist bounds yourself — Regent does, to a world setting, and the base's restore runs in `_onFirstRender`, i.e. after your constructor, so leaving both on means the base wins.
 
 ## Quick how-to (consumers)
 
-1. **Regent:** no ES **`import`** of URLs under `/modules/coffee-pub-blacksmith/` for scripts. Use **`mod.api`** at runtime; journal via **`createJournalEntry`**; window base via **`api.BlacksmithWindowBaseV2` / `getWindowBaseV2()`** (see `window-query.js` resolver). Shell template path **`modules/coffee-pub-blacksmith/templates/window-template.hbs`** is used only when the official base is in use (template asset, not a `.js` import).
+1. **Regent:** the only ES **`import`** of a Blacksmith URL is the bridge, **`/modules/coffee-pub-blacksmith/api/blacksmith-api.js`**, for the window base — `scripts/*` stays off limits. Everything resolved after `init` goes through **`mod.api`**; journal via **`createJournalEntry`**. Shell template path **`modules/coffee-pub-blacksmith/templates/window-template.hbs`** is a template asset, not a `.js` import.
 
 2. **After `ready`:** `const api = game.modules.get('coffee-pub-blacksmith')?.api;`
 
-3. **Optional timing bridge:** `api/blacksmith-api.js` + `BlacksmithAPI.get()` — Regent does not import this file.
+3. **Bridge:** `api/blacksmith-api.js` — base classes and style constants (import), plus `BlacksmithAPI.get()` for timing.
 
 4. **Logging:** `api.utils.postConsoleAndNotification(...)`
 
@@ -75,16 +84,15 @@ Internal filenames are not a stable contract. Use **`mod.api`** and the wiki.
 | Need | Approach |
 |------|----------|
 | Open / register Consult the Regent | `registerWindow` / `openWindow` |
-| Application V2 subclass | `api.BlacksmithWindowBaseV2` or `getWindowBaseV2()`; fallback `regent-window-base-v2.js` if api not ready at load |
+| Application V2 subclass | **`import { BlacksmithWindowBaseV2 } from '/modules/coffee-pub-blacksmith/api/blacksmith-api.js'`** — no fallback |
 | JSON → journal | **`api.createJournalEntry`** (`blacksmith-bridge.js`) |
 | Toolbar, utils, HookManager, chat cards, macros | `mod.api` |
+| Cancelling a `pre*` hook | `registerHook({ ..., canCancel: true })` — **top level, not inside `options`**. Without it a falsy return is ignored, which is what you want for a callback whose natural return value is a boolean. Regent's one hook (`controlToken`, `token-handler.js`) is not a `pre*` hook and vetoes nothing. |
 
 ## Regent implementation
 
-- **`scripts/blacksmith-bridge.js`** — `mod.api.utils`, `HookManager`, `createJournalEntry`
-- **`scripts/regent-window-base-v2.js`** — fallback base only when `mod.api` has no window base at Regent load time
-- **`templates/regent-window-shell.hbs`** — fallback shell (paired with fallback base)
-- **`scripts/window-query.js`** — `resolveWindowQueryBase()` + matching shell path
+- **`scripts/blacksmith-bridge.js`** — `mod.api.utils`, `HookManager`, `createJournalEntry`, chat cards
+- **`scripts/window-query.js`** — imports `BlacksmithWindowBaseV2` from the bridge; renders `window-template.hbs`
 - **`scripts/regent-bootstrap.js`** — `ready`; `mod.api` only
 
 ## Shared roll + campaign context

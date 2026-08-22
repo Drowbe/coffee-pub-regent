@@ -7,14 +7,25 @@ import { postConsoleAndNotification } from './api-core.js';
 import { playSound, trimString, createJournalEntryFromBlacksmith, getChatCards, getChatCardThemeId } from './blacksmith-bridge.js';
 import { composePartsFromHtml } from './card-composer.js';
 import { getCachedTemplate } from './regent.js';
-import { RegentWindowBaseV2 } from './regent-window-base-v2.js';
 import { registerEncounterWorksheetGlobals } from './regent-encounter-worksheet.js';
 
 import { TokenHandler } from './token-handler.js';
 
+/**
+ * The Blacksmith base class, imported from the published bridge.
+ *
+ * `extends` is evaluated when this module is evaluated, which is before `game`
+ * exists — so the base CANNOT come from `game.modules.get(...).api`. Regent used
+ * to resolve it that way behind optional chaining: it never threw, but `api` was
+ * always undefined, so the local fork was the base 100% of the time and the
+ * Blacksmith branch was dead code. `api/blacksmith-api.js` is a real ES module,
+ * so it resolves at evaluation time. `mod.api` is still correct for anything
+ * resolved after `init` — see blacksmith-bridge.js.
+ */
+import { BlacksmithWindowBaseV2 } from '/modules/coffee-pub-blacksmith/api/blacksmith-api.js';
+
 /** Blacksmith core shell (template path only — not a script import). See wiki API: Window. */
 const BLACKSMITH_WINDOW_SHELL = 'modules/coffee-pub-blacksmith/templates/window-template.hbs';
-const REGENT_WINDOW_SHELL = 'modules/coffee-pub-regent/templates/regent-window-shell.hbs';
 
 // ==================================================================
 // ===== CHAT CARDS =================================================
@@ -73,27 +84,6 @@ function buildGmReportParts(entries = []) {
     flush();
     return parts;
 }
-
-/**
- * Use mod.api.BlacksmithWindowBaseV2 or getWindowBaseV2() per Blacksmith Window API — do not import scripts/window-base-v2.js.
- * If api is not populated yet at module load (e.g. before `ready`), falls back to RegentWindowBaseV2.
- */
-function resolveWindowQueryBase() {
-    const api = globalThis.game?.modules?.get?.('coffee-pub-blacksmith')?.api;
-    if (!api) return RegentWindowBaseV2;
-    if (typeof api.BlacksmithWindowBaseV2 === 'function') return api.BlacksmithWindowBaseV2;
-    if (typeof api.getWindowBaseV2 === 'function') {
-        try {
-            const C = api.getWindowBaseV2();
-            if (typeof C === 'function') return C;
-        } catch (_) { /* ignore */ }
-    }
-    return RegentWindowBaseV2;
-}
-
-const WindowQueryBase = resolveWindowQueryBase();
-const WindowQueryShellTemplate =
-    WindowQueryBase === RegentWindowBaseV2 ? REGENT_WINDOW_SHELL : BLACKSMITH_WINDOW_SHELL;
 
 // Base template for AI instructions
 const BASE_PROMPT_TEMPLATE = {
@@ -323,23 +313,26 @@ function clearWorksheetTokens(id) {
 // ===== CLASSES ====================================================
 // ================================================================== 
 
-export class BlacksmithWindowQuery extends WindowQueryBase {
+export class BlacksmithWindowQuery extends BlacksmithWindowBaseV2 {
 
     static PARTS = {
-        body: { template: WindowQueryShellTemplate }
+        body: { template: BLACKSMITH_WINDOW_SHELL }
     };
 
-    /** Blacksmith API: data-action buttons in action bar call these. Base class routes via _attachDelegationOnce. */
+    /**
+     * Blacksmith API: data-action buttons in the action bar call these. The base
+     * class routes clicks per instance and passes the instance as the third
+     * argument, so these take `w` directly rather than reading the deprecated
+     * `_ref` (which points at whichever instance rendered last).
+     */
     static ACTION_HANDLERS = {
-        regentSubmit: (e, btn) => {
-            const w = BlacksmithWindowQuery._ref;
+        regentSubmit: (e, btn, w) => {
             if (!w) return;
             e?.preventDefault?.();
             const form = w._getRoot()?.querySelector?.('form');
             if (form) w._onSubmit(e, form);
         },
-        regentClear: (e, btn) => {
-            const w = BlacksmithWindowQuery._ref;
+        regentClear: (e, btn, w) => {
             if (!w) return;
             e?.preventDefault?.();
             w._onClearWorkspace(e);
@@ -421,6 +414,12 @@ export class BlacksmithWindowQuery extends WindowQueryBase {
                     width,
                     height: intHeight
                 },
+                // Regent persists bounds itself, to a world setting (see the
+                // constructor and close()), so the base's localStorage copy is
+                // switched off. With both on, the base restores from
+                // localStorage in _onFirstRender — after the constructor — and
+                // silently wins, moving position from per-world to per-browser.
+                rememberPosition: false,
                 window: {
                     title: REGENT.WINDOW_QUERY_TITLE,
                     resizable: true,
