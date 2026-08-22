@@ -6,7 +6,6 @@ import { MODULE, REGENT } from './const.js';
 import { postConsoleAndNotification } from './api-core.js';
 import { playSound, trimString, createJournalEntryFromBlacksmith, getChatCards, getChatCardThemeId } from './blacksmith-bridge.js';
 import { composePartsFromHtml } from './card-composer.js';
-import { getCachedTemplate } from './regent.js';
 import { registerEncounterWorksheetGlobals } from './regent-encounter-worksheet.js';
 
 import { TokenHandler } from './token-handler.js';
@@ -518,7 +517,6 @@ export class BlacksmithWindowQuery extends BlacksmithWindowBaseV2 {
                 if (!wrapper) return;
                 const w = BlacksmithWindowQuery._ref;
                 if (!w) return;
-                console.log('[Regent] click inside wrapper (card check)');
                 postConsoleAndNotification(MODULE.NAME, 'Regent: click inside wrapper (card check)', '', true, false);
                 const jsonBtn = e.target.closest('.regent-chat-button-json');
                 if (jsonBtn) {
@@ -619,7 +617,6 @@ export class BlacksmithWindowQuery extends BlacksmithWindowBaseV2 {
                 if (!wrapper) return;
                 const w = BlacksmithWindowQuery._ref;
                 if (!w) return;
-                console.log('[Regent] click inside wrapper (document)');
                 postConsoleAndNotification(MODULE.NAME, 'Regent: click inside wrapper (document)', '', true, false);
                 const clickedButton = e.target.closest?.('[id^="regent-query-button-"]');
                 if (!clickedButton?.id) return;
@@ -701,12 +698,10 @@ export class BlacksmithWindowQuery extends BlacksmithWindowBaseV2 {
     async _onFirstRender(_context, options) {
         await super._onFirstRender?.(_context, options);
         this._attachRegentDelegationOnce();
-        console.log('[Regent] _onFirstRender finished, document listeners attached');
         postConsoleAndNotification(MODULE.NAME, 'Regent: _onFirstRender finished, document listeners attached', '', true, false);
     }
 
     activateListeners(html) {
-        console.log('[Regent] activateListeners called', html?.nodeName ?? html?.constructor?.name ?? 'unknown');
         postConsoleAndNotification(MODULE.NAME, 'Regent: activateListeners called', (html?.nodeName ?? html?.constructor?.name ?? 'unknown').toString(), true, false);
         super.activateListeners(html);
 
@@ -1791,7 +1786,7 @@ export class BlacksmithWindowQuery extends BlacksmithWindowBaseV2 {
         const inputFolderName = form.querySelector('#input-FOLDERNAME-' + id)?.value ?? null;
         const inputSceneTitle = form.querySelector('#input-SCENETITLE-' + id)?.value ?? null;
         const optionCardImage = form.querySelector('#optionCardImage-CARDIMAGE-' + id)?.value ?? null;
-        const inputCardImage = form.querySelector('#input-CARDIMAGE' + id)?.value ?? null;
+        const inputCardImage = form.querySelector('#input-CARDIMAGE-' + id)?.value ?? null;
 
         // Details
         const blnGenerateDialogue = form.querySelector('#blnGenerateDialogue-' + id)?.checked ?? null;
@@ -1802,10 +1797,6 @@ export class BlacksmithWindowQuery extends BlacksmithWindowBaseV2 {
         const inputSceneParent = form.querySelector('#input-SCENEPARENT-' + id)?.value ?? null;
         const inputSceneArea = form.querySelector('#input-SCENEAREA-' + id)?.value ?? null;
         const inputEnvironment = form.querySelector('#input-ENVIRONMENT-' + id)?.value ?? null;
-        // card prep
-        const inputPrepTitle = form.querySelector('#input-PREPTITLE-' + id)?.value ?? null;
-        const inputPrepDescription = form.querySelector('#input-PREPDESCRIPTION-' + id)?.value ?? null;
-        const inputPrepDetails = form.querySelector('#input-PREPDESCRIPTION-' + id)?.value ?? null;
         // rewards and treasure
         const blnAddRewards = form.querySelector('#blnAddRewards-' + id)?.checked ?? null;
         const inputXP = form.querySelector('#input-XP-' + id)?.value ?? null;
@@ -1846,11 +1837,11 @@ export class BlacksmithWindowQuery extends BlacksmithWindowBaseV2 {
             case "encounter":
                 // ENCOUNTER
                 // update this once generating realtime encounters
-                isWorkspaceSet = inputFolderName || inputSceneTitle || inputLocation || inputSceneParent || inputSceneArea || inputEnvironment || inputPrepTitle || inputPrepDescription || inputPrepDetails || inputXP || inputNarrativeRewardDetails;
+                isWorkspaceSet = inputFolderName || inputSceneTitle || inputLocation || inputSceneParent || inputSceneArea || inputEnvironment || inputXP || inputNarrativeRewardDetails;
                 break;
             case "narrative":
                 // NARRATIVE
-                isWorkspaceSet = inputFolderName || inputSceneTitle || optionCardImage || inputCardImage || inputLocation || inputSceneParent || inputSceneArea || inputEnvironment || inputPrepTitle || inputPrepDescription || inputPrepDetails || inputXP || inputNarrativeRewardDetails;
+                isWorkspaceSet = inputFolderName || inputSceneTitle || optionCardImage || inputCardImage || inputLocation || inputSceneParent || inputSceneArea || inputEnvironment || inputXP || inputNarrativeRewardDetails;
                 break;
             case "lookup":
                 // LOOKUP
@@ -2552,10 +2543,7 @@ Key encounter requirements:`;
                         gmRow('Scene Parent', inputSceneParent);
                         gmRow('Scene Area', inputSceneArea);
                         gmRow('Environment', inputEnvironment);
-                        gmRow('Prep Title', inputPrepTitle);
-                        gmRow('Prep Description', inputPrepDescription);
-                        gmRow('Prep Details', inputPrepDetails);
-                        
+
                         // Simple context for encounter
                         strGMSimpleContext = `<p><b>Generating encounter</b> for "${inputSceneTitle || 'unnamed encounter'}"`;
                         if (inputLocation) strGMSimpleContext += ` in ${inputLocation}`;
@@ -2582,9 +2570,6 @@ Key encounter requirements:`;
                         gmRow('Scene Parent', inputSceneParent);
                         gmRow('Scene Area', inputSceneArea);
                         gmRow('Environment', inputEnvironment);
-                        gmRow('Prep Title', inputPrepTitle);
-                        gmRow('Prep Description', inputPrepDescription);
-                        gmRow('Prep Details', inputPrepDetails);
 
                         // Simple context for narrative
                         strGMSimpleContext = `<p><b>Generating narrative</b> for "${inputSceneTitle || 'unnamed scene'}"`;
@@ -2945,7 +2930,7 @@ Please format the response using <p> for paragraphs (not <br> or <br><br>), <h4>
     /** Blacksmith template contract: chrome + bodyContent + action bar (api-window.md). */
     async getData(options = {}) {
         const regentData = this._getRegentTemplateData(options);
-        const tpl = await getCachedTemplate(REGENT.WINDOW_QUERY);
+        const tpl = await foundry.applications.handlebars.getTemplate(REGENT.WINDOW_QUERY);
         const bodyContent = tpl(regentData);
         const submitLabel = 'Consult the Regent';
         const actionBarRight = `<button type="button" class="blacksmith-window-template-btn-secondary" data-action="regentClear" title="Clear form"><i class="fa-solid fa-broom-wide"></i> Clear</button><button type="button" class="blacksmith-window-template-btn-primary" data-action="regentSubmit"><i class="fa-solid fa-paper-plane"></i> ${submitLabel}</button>`;

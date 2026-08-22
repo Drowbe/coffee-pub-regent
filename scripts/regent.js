@@ -15,27 +15,6 @@ async function playSoundSafe(sound, volume = 0.5) {
     } catch (_) {}
 }
 
-const TEMPLATE_CACHE_EXPIRATION = 5 * 60 * 1000; // 5 minutes
-const templateCache = new Map();
-
-export async function getCachedTemplate(templatePath) {
-    const now = Date.now();
-    if (templateCache.has(templatePath)) {
-        const cached = templateCache.get(templatePath);
-        if ((now - cached.timestamp) < TEMPLATE_CACHE_EXPIRATION) return cached.template;
-    }
-    try {
-        const response = await fetch(templatePath);
-        const templateText = await response.text();
-        const template = Handlebars.compile(templateText);
-        templateCache.set(templatePath, { template, timestamp: now });
-        return template;
-    } catch (error) {
-        postConsoleAndNotification(MODULE.NAME, `Error loading template ${templatePath}`, error, false, false);
-        throw error;
-    }
-}
-
 export function generateFormattedDate(format) {
     const now = new Date();
     const year = now.getFullYear();
@@ -146,8 +125,7 @@ export async function buildQueryCard(question, queryWindow, queryContext = '') {
         const strQueryContext = queryContext;
         const strDateStamp = generateFormattedDate();
         requestId = `regent-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-        const templatePath = REGENT.WINDOW_QUERY_MESSAGE;
-        const template = await getCachedTemplate(templatePath);
+        const template = await foundry.applications.handlebars.getTemplate(REGENT.WINDOW_QUERY_MESSAGE);
 
         if (strQueryContext) strDisplayQuestion = strQueryContext;
 

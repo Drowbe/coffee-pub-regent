@@ -15,6 +15,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **Partial registration goes through `foundry.applications.handlebars.loadTemplates()`.** `window-query-registration.js` was 33 `await fetch(...)` calls in sequence, so every partial cost a serialised round trip during `ready`. The list is now a name → path map handed to the core loader, which fetches concurrently and skips anything already in `Handlebars.partials`.
+- **`getCachedTemplate()` is gone; both call sites use `foundry.applications.handlebars.getTemplate()`.** It duplicated core's template cache with a worse one: a 5-minute expiry meant `window-query.hbs` was re-fetched and re-compiled on any window opened more than five minutes after the last. Core caches compiled templates for the session.
+
+### Fixed
+
+- **The custom card image path never reached the AI.** `_onSubmit` read `#input-CARDIMAGE` + id, missing the hyphen the element actually carries (`input-CARDIMAGE-{{id}}`), so the value was always `null`. Choosing **Custom** and entering a path produced `CARDIMAGE: Set to ""` in both the encounter and narrative prompts. The field appeared to work because `loadNarrativeCookies` reads it with the correct selector and restores it on reopen.
+- **The GM Regent Report carried three empty section dividers.** `PREPTITLE` and `PREPDESCRIPTION` exist in no template, so `inputPrepTitle` / `inputPrepDescription` / `inputPrepDetails` were always `null` — and `gmRow` treats a falsy value as a heading rather than a row, which is how `<b>ENCOUNTER</b>` and friends are drawn. Every report ended with "Prep Title", "Prep Description" and "Prep Details" as dividers over nothing. The three variables and their six `gmRow` calls are gone. (`inputPrepDetails` also read the `PREPDESCRIPTION` selector, so had the fields ever been restored, Details would have mirrored Description.)
+
+### Changed
+
+- **Blacksmith is declared correctly as a dependency.** `relationships.requires` pointed at Regent's own manifest URL, so Foundry would have tried to satisfy the Blacksmith requirement by installing Regent. Now points at Blacksmith, with a minimum of **13.19.0** — the release that publishes the window base classes on `api/blacksmith-api.js`, which Regent now imports at evaluation time.
+- **Four unconditional `console.log` calls removed** from the click delegation and render hooks. Each sat beside an equivalent `postConsoleAndNotification` that already respects the global debug setting; two of them fired on every click inside the window.
 
 ### Performance
 
