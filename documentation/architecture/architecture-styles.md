@@ -13,11 +13,20 @@ Regent styles its own window. It does not inherit Blacksmith's, and the reasons 
 @import "regent-workspace-forms.css"; /* worksheet form controls */
 ```
 
-**`styles/window-query.css` is not loaded by anything.** It is 258 lines of workspace-content rules
-carried over from Blacksmith and left behind when the import list was written. It has no effect
-today. It is recorded here rather than quietly deleted because some of it may be worth reinstating
-if a worksheet ever looks unstyled -- but nothing currently depends on it, and it should not be
-assumed live when reading the tree.
+**`styles/window-query.css` is not loaded by anything, and that is a defect rather than dead code.**
+It is 258 lines of workspace-content rules that never made it into the import list. The classes it
+styles -- `.workspace-item-*`, `.primary-info`, `.details-grid`, `.spell-list-container` and the rest
+-- **are used in the worksheet templates and are defined in no other stylesheet**, so that markup
+renders unstyled today.
+
+It cannot simply be imported. **Not one of its rules is scoped**: they are bare class selectors, and
+`.form-label` alone appears 48 times in Regent's templates but would, as a global rule, also style
+every other module's forms and Foundry's own interface. Importing it as it stands trades missing
+styling for leaked styling.
+
+The fix is to scope every rule to `#coffee-pub-regent-wrapper` and then import it -- mechanical, but
+it changes how the worksheets look, so it wants someone watching the screen. `node tools/check-styles-loaded.mjs`
+reports the file until this is resolved, and that report is correct.
 
 ## Regent does not inherit Blacksmith's window CSS
 

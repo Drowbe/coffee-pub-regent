@@ -24,8 +24,12 @@
 
 ## Optional cleanup
 
-3. **`styles/window-query.css` is not loaded by anything** -- 258 lines with no effect. Decide
-   whether any of it is worth reinstating, then either import it or delete it.
+3. **`styles/window-query.css` is not loaded, and the worksheets are unstyled because of it.**
+   The classes it defines are used in the templates and appear in no other stylesheet, so this is
+   missing styling rather than dead code. It cannot be imported as-is: none of its 44 rules is
+   scoped, and `.form-label` -- used 48 times in Regent's templates -- would leak into every other
+   module's forms as a global rule. Scope every rule to `#coffee-pub-regent-wrapper`, then import,
+   then look at the worksheets. `node tools/check-styles-loaded.mjs` flags this correctly until done.
 
 4. **Icon prefixes are mixed** -- 53 legacy `fas`/`far` against the modern `fa-solid`/`fa-regular`.
    Both resolve under Font Awesome 7, so this is consistency only, with no functional effect.
