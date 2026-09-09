@@ -4,7 +4,7 @@
 
 import { MODULE, REGENT } from './const.js';
 import { postConsoleAndNotification } from './api-core.js';
-import { playSound, trimString, createJournalEntryFromBlacksmith, getChatCards, getChatCardThemeId } from './blacksmith-bridge.js';
+import { playSound, trimString, createJournalEntryFromBlacksmith, getChatCards, getChatCardThemeId, getDialog } from './blacksmith-bridge.js';
 import { composePartsFromHtml } from './card-composer.js';
 import { registerEncounterWorksheetGlobals } from './regent-encounter-worksheet.js';
 
@@ -54,6 +54,56 @@ async function postRegentCard({ parts, type = null, whisper } = {}) {
         ...(theme ? { theme } : {}),
         ...(whisper ? { whisper } : {})
     });
+}
+
+/**
+ * Add an encounter to a narrative zone from a dropped journal, asking which
+ * page when the journal has more than one.
+ *
+ * Both narrative drop paths — the encounters drop zone and the generic journal
+ * drop — resolved a page with identical code, so this is one helper rather than
+ * two copies that can drift.
+ *
+ * Dismissal creates nothing. Blacksmith's `choose` resolves rather than throws
+ * on Escape or the close button, and a dismissal is not a choice: silently
+ * adding a page the user backed out of would be the worse failure.
+ *
+ * @param {string} zoneId
+ * @param {JournalEntry} journal
+ * @returns {Promise<void>}
+ */
+async function addEncounterFromJournal(zoneId, journal) {
+    const pages = journal?.pages?.contents ?? [];
+    if (pages.length === 0) {
+        ui.notifications.warn("This journal has no pages.");
+        return;
+    }
+    if (pages.length === 1) {
+        await addEncounterToNarrative(zoneId, journal, pages[0]);
+        return;
+    }
+
+    const dialog = getDialog();
+    if (!dialog?.choose) {
+        postConsoleAndNotification(MODULE.NAME, 'Blacksmith dialog API unavailable; cannot choose an encounter page.', '', false, true);
+        return;
+    }
+
+    const outcome = await dialog.choose({
+        title: "Select Encounter Page",
+        content: `<p>Choose which page of <strong>${foundry.utils.escapeHTML(journal.name ?? '')}</strong> to add.</p>`,
+        choices: pages.map((page) => ({ id: page.id, label: page.name })),
+        closeValue: null
+    });
+
+    // Compared against a resolved string rather than `dialog.ACTIONS?.SUBMIT`
+    // directly: if ACTIONS were ever absent, the optional chain yields undefined
+    // and this check would silently reject every choice — the dialog opens, the
+    // user picks, and nothing happens.
+    const SUBMIT = dialog.ACTIONS?.SUBMIT ?? 'submit';
+    if (outcome?.action !== SUBMIT) return;
+    const page = journal.pages.get(outcome.value);
+    if (page) await addEncounterToNarrative(zoneId, journal, page);
 }
 
 /**
@@ -970,41 +1020,7 @@ export class BlacksmithWindowQuery extends BlacksmithWindowBaseV2 {
                             page = journal.pages.get(data.pageId);
                             if (page) await addEncounterToNarrative(zoneId, journal, page);
                         } else {
-                            const pages = journal.pages.contents;
-                            if (pages.length === 0) {
-                                ui.notifications.warn("This journal has no pages.");
-                                return;
-                            }
-                            if (pages.length === 1) {
-                                await addEncounterToNarrative(zoneId, journal, pages[0]);
-                            } else {
-                                const dialog = new Dialog({
-                                    title: "Select Encounter Page",
-                                    content: `<div><select id="page-select" style="width: 100%;">
-                                        ${pages.map(p => `<option value="${p.id}">${p.name}</option>`).join('')}
-                                    </select></div>`,
-                                    buttons: {
-                                        select: {
-                                            label: "Select",
-                                            callback: async (html) => {
-                                                let nativeDialogHtml = html;
-                                                if (html && (html.jquery || typeof html.find === 'function')) {
-                                                    nativeDialogHtml = html[0] || html.get?.(0) || html;
-                                                }
-                                                const pageSelect = nativeDialogHtml?.querySelector?.('#page-select');
-                                                const pageId = pageSelect ? pageSelect.value : null;
-                                                if (pageId) {
-                                                    const page = journal.pages.get(pageId);
-                                                    if (page) await addEncounterToNarrative(zoneId, journal, page);
-                                                }
-                                            }
-                                        },
-                                        cancel: { label: "Cancel" }
-                                    },
-                                    default: "select"
-                                });
-                                dialog.render(true);
-                            }
+                            await addEncounterFromJournal(zoneId, journal);
                         }
                     }
                 }
@@ -1115,41 +1131,7 @@ export class BlacksmithWindowQuery extends BlacksmithWindowBaseV2 {
                     const page = journal.pages.get(data.pageId);
                     if (page) await addEncounterToNarrative(zoneId, journal, page);
                 } else {
-                    const pages = journal.pages.contents;
-                    if (pages.length === 0) {
-                        ui.notifications.warn("This journal has no pages.");
-                        return;
-                    }
-                    if (pages.length === 1) {
-                        await addEncounterToNarrative(zoneId, journal, pages[0]);
-                    } else {
-                        const dialog = new Dialog({
-                            title: "Select Encounter Page",
-                            content: `<div><select id="page-select" style="width: 100%;">
-                                ${pages.map(p => `<option value="${p.id}">${p.name}</option>`).join('')}
-                            </select></div>`,
-                            buttons: {
-                                select: {
-                                    label: "Select",
-                                    callback: async (html) => {
-                                        let nativeDialogHtml = html;
-                                        if (html && (html.jquery || typeof html.find === 'function')) {
-                                            nativeDialogHtml = html[0] || html.get?.(0) || html;
-                                        }
-                                        const pageSelect = nativeDialogHtml?.querySelector?.('#page-select');
-                                        const pageId = pageSelect ? pageSelect.value : null;
-                                        if (pageId) {
-                                            const page = journal.pages.get(pageId);
-                                            if (page) await addEncounterToNarrative(zoneId, journal, page);
-                                        }
-                                    }
-                                },
-                                cancel: { label: "Cancel" }
-                            },
-                            default: "select"
-                        });
-                        dialog.render(true);
-                    }
+                    await addEncounterFromJournal(zoneId, journal);
                 }
             }
         } catch (error) {

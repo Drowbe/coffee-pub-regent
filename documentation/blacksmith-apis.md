@@ -23,6 +23,7 @@ Authoritative Window doc: **[API: Window](https://github.com/Drowbe/coffee-pub-b
 | Stats | [API: Stats](https://github.com/Drowbe/coffee-pub-blacksmith/wiki/API:-Stats) |
 | Pins | [API: Pins](https://github.com/Drowbe/coffee-pub-blacksmith/wiki/API:-Pins) |
 | Chat Cards | [API: Chat Cards](https://github.com/Drowbe/coffee-pub-blacksmith/wiki/API:-Chat-Cards) |
+| **Dialog** (`DialogV2` helpers) | **[API: Dialog](https://github.com/Drowbe/coffee-pub-blacksmith/wiki/API:-Dialog)** |
 | **Window (registry + base class)** | **[API: Window](https://github.com/Drowbe/coffee-pub-blacksmith/wiki/API:-Window)** |
 | Request Roll | [API: Request Roll](https://github.com/Drowbe/coffee-pub-blacksmith/wiki/API:-Request-Roll) |
 | Campaign | [API: Campaign](https://github.com/Drowbe/coffee-pub-blacksmith/wiki/API:-Campaign) |
@@ -87,11 +88,41 @@ Internal filenames are not a stable contract. Use **`mod.api`** and the wiki.
 | Application V2 subclass | **`import { BlacksmithWindowBaseV2 } from '/modules/coffee-pub-blacksmith/api/blacksmith-api.js'`** — no fallback |
 | JSON → journal | **`api.createJournalEntry`** (`blacksmith-bridge.js`) |
 | Toolbar, utils, HookManager, chat cards, macros | `mod.api` |
+| A dialog of any kind | **`api.dialog`** — never `new Dialog(...)`, and never `DialogV2` directly. See below. |
 | Cancelling a `pre*` hook | `registerHook({ ..., canCancel: true })` — **top level, not inside `options`**. Without it a falsy return is ignored, which is what you want for a callback whose natural return value is a boolean. Regent's one hook (`controlToken`, `token-handler.js`) is not a `pre*` hook and vetoes nothing. |
+
+## Dialogs: `api.dialog`, not `DialogV2`
+
+Regent has no dialogs of its own. Every one goes through **`api.dialog`** (`confirm`,
+`choose`, `prompt`, `pickActor`, `wait`), reached via `getDialog()` in
+`scripts/blacksmith-bridge.js`.
+
+**The reason is the dismissal contract, not styling.** Foundry's raw `DialogV2` statics
+**reject** when the user dismisses a dialog unless `rejectClose: false` is passed, so every
+call site would need a `try`/`catch` to treat "pressed Escape" as an ordinary outcome —
+and the one that forgets turns a shrug into an unhandled rejection. Blacksmith's helpers
+resolve instead, so dismissal is a value you read rather than an exception you remember.
+
+Read the outcome as `{ action, value }` and compare `action` against `api.dialog.ACTIONS`.
+**On `wait`, read the clicked button off `value`, not `action`** — `action` is one of three
+vocabulary strings (`submit` for any non-cancel button), so testing `action === 'yes'` is
+false on a Yes and silently does nothing.
+
+**A dismissal must not be treated as a choice.** `addEncounterFromJournal` in
+`window-query.js` returns without creating anything unless `action` is `SUBMIT`.
+
+### V1 `Dialog` removed (2026-09-09, v14 migration)
+
+Two near-identical "Select Encounter Page" dialogs used V1 `new Dialog({...})` with a
+hand-rolled jQuery-vs-native shim in the button callback. Both are now one helper,
+`addEncounterFromJournal`, over `api.dialog.choose`.
+
+**V1 `Dialog` still resolves on Foundry v14** — this was deprecation hygiene, not a v14
+fix, and the code was not broken before the change.
 
 ## Regent implementation
 
-- **`scripts/blacksmith-bridge.js`** — `mod.api.utils`, `HookManager`, `createJournalEntry`, chat cards
+- **`scripts/blacksmith-bridge.js`** — `mod.api.utils`, `HookManager`, `createJournalEntry`, chat cards, dialogs
 - **`scripts/window-query.js`** — imports `BlacksmithWindowBaseV2` from the bridge; renders `window-template.hbs`
 - **`scripts/regent-bootstrap.js`** — `ready`; `mod.api` only
 

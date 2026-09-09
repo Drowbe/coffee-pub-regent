@@ -110,3 +110,21 @@ export function getChatCardThemeId() {
     const byClassName = themes.find((t) => t.className === stored);
     return byClassName ? byClassName.id : null;
 }
+
+// ==================================================================
+// ===== DIALOGS ====================================================
+// ==================================================================
+
+/**
+ * Blacksmith's dialog helpers over Foundry's `DialogV2`, or null if unavailable.
+ *
+ * Regent uses these rather than `DialogV2` directly for the dismissal contract:
+ * the raw statics REJECT when a dialog is dismissed unless `rejectClose: false`
+ * is passed, so every caller would need a try/catch to treat "user pressed
+ * Escape" as an ordinary outcome. These resolve instead.
+ *
+ * @returns {object|null}
+ */
+export function getDialog() {
+    return getBlacksmithApi()?.dialog ?? null;
+}

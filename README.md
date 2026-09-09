@@ -2,9 +2,16 @@
 
 Optional AI tools for the Coffee Pub ecosystem. **Consult the Regent** and worksheets (Lookup, Character, Assistant, Encounter, Narrative) powered by configurable LLM providers. Requires **Coffee Pub Blacksmith**.
 
+![Latest Release](https://img.shields.io/github/v/release/Drowbe/coffee-pub-regent)
+![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/Drowbe/coffee-pub-regent/release.yml?event=push)
+![GitHub all releases](https://img.shields.io/github/downloads/Drowbe/coffee-pub-regent/total)
+![Foundry v13](https://img.shields.io/badge/foundry-v13-yellow)
+![Foundry v14](https://img.shields.io/badge/foundry-v14-green)
+![MIT License](https://img.shields.io/badge/license-MIT-blue)
+
 ## About
 
-Coffee Pub Regent adds AI-powered tools to Foundry VTT via the Blacksmith Utilities toolbar: ask the Regent questions, look up SRD content, build characters, get assistant feedback, design encounters, and generate narrative content. All AI features live in this optional module; Blacksmith provides the shared UI and integration. Supports Foundry v13 and D&D 5e 5.5+.
+Coffee Pub Regent adds AI-powered tools to Foundry VTT via the Blacksmith Utilities toolbar: ask the Regent questions, look up SRD content, build characters, get assistant feedback, design encounters, and generate narrative content. All AI features live in this optional module; Blacksmith provides the shared UI and integration. Supports Foundry **v13 and v14**, and D&D 5e 5.5+.
 
 ## Download & Installation
 
