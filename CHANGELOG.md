@@ -55,9 +55,23 @@ never converged; Regent now matches the other twelve.
 
 - **`styles/window-query.css` was not loaded by anything** -- 258 lines with no effect. First recorded as dead code; it turned out to be missing styling, and is fixed above. The lesson is worth keeping: a tool reporting "nothing loads this file" reads like *delete it* and can equally mean *you forgot to load it*, and the two have opposite fixes.
 
-### Known untested
+### Verified on a live v14 client
 
-- **Send to Chat, the GM Regent Report whisper, and journal creation from a JSON reply have not been exercised in a live world** on v13 or v14. They need a configured AI provider key. This is an untested feature rather than a v14 risk — the chat-card work landed without a live run.
+Driven on 14.367 by the Blacksmith agent, with two API calls authorised by the author:
+
+- **Send to Chat builds a correct card**, 0 console errors. `<br><br>` became four real paragraphs, lists survived as `<ul>`/`<li>`, bold and italic both rendered, and there was no `[object Object]` and no visible markdown pipes.
+- **The GM Regent Report whisper reaches only GMs.** The whisper array is stored verbatim, so a player never sees it; identity, avatar, section and prose all render.
+- **All three dialog paths behave.** Choosing a page resolves that page; the close button and Cancel both resolve to a dismissal and create nothing. The Escape *key binding* is not proven -- a synthetic keystroke cannot reach Foundry's handler -- but the dismissal path it triggers is.
+
+### Known broken, scheduled after v14
+
+- **Narrative journals are not created.** Regent emits `"journaltype": "Narrative"`, which Blacksmith's journal API rejects: *"Legacy narrative journals are not supported. Use journaltype `area` with the blocks envelope."* The error is caught and shown as a notification, so a narrative answer produces no journal and no console error. The Encounter worksheet is unaffected. **This predates the v14 work and is present on v13**; it is a Regent defect, not a v14 regression.
+- **The window renders less markdown than the chat card.** `_markdownToHtml` handles headings and `**bold**`; it has no rule for `*italic*`, markdown tables, or `---`, all three of which the card composer handles. The same answer can therefore look correct in chat and show raw asterisks in the window. Intermittent in symptom, not in cause.
+
+### Still unverified
+
+- **Foundry v13.** `compatibility.minimum` remains `"13"`, but no v13 client was available during this work, so nothing in this release was exercised there. The claim rests on the code carrying no v14-only API and no `game.release.generation` branch.
+- **The Escape key on the page-choice dialog.** The dismissal path it triggers is proven; the key binding reaching Foundry's handler is not, because a synthetic keystroke cannot test it.
 
 ## [13.1.2]
 
