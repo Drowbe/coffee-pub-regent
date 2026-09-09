@@ -193,7 +193,7 @@ Create the new module as a **sibling** of the Blacksmith folder (same parent), n
 - **Scope:** Move OpenAI API, query window, all Regent templates and assets, and Regent-specific settings into coffee-pub-regent; remove all of that from Blacksmith and have Regent register its tools via Blacksmith’s toolbar API.
 - **Contract:** Regent depends on Blacksmith and **uses only the Blacksmith API**; Regent must never rely on accessing Blacksmith in any other way (no settings, no globals, no internal state). Blacksmith has no dependency on Regent.
 
-**Implementation note:** Regent is a sibling module under `Data/modules/coffee-pub-regent/`. Blacksmith is used via **`mod.api`** (no ES `import` of Blacksmith **`scripts/*`**). Window subclassing prefers **`api.BlacksmithWindowBaseV2` / `getWindowBaseV2()`**; **`regent-window-base-v2.js`** + **`regent-window-shell.hbs`** are fallbacks. See **`documentation/blacksmith-apis.md`** and wiki [API: Window](https://github.com/Drowbe/coffee-pub-blacksmith/wiki/API:-Window).
+**Implementation note (superseded 2026-09-09):** Regent is a sibling module under `Data/modules/coffee-pub-regent/`. Blacksmith is reached through **`mod.api`**, except the window base, which is a real ES import from **`/modules/coffee-pub-blacksmith/api/blacksmith-api.js`** -- reading it off `mod.api` at module top level cannot work. There is no fallback base: **`regent-window-base-v2.js`** and **`regent-window-shell.hbs`** have been deleted. See **`documentation/architecture/architecture-blacksmith-integration.md`**.
 
 This plan is intended as the single source of truth for Option B; implementation can follow the sections above step by step.
 

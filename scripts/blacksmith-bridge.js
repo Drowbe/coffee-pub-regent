@@ -3,7 +3,7 @@
 // ==================================================================
 // Runtime access to game.modules.get('coffee-pub-blacksmith')?.api only.
 // Regent does not import any URL from the Blacksmith package. See
-// documentation/blacksmith-apis.md.
+// documentation/architecture/architecture-blacksmith-integration.md.
 
 import { MODULE } from './const.js';
 

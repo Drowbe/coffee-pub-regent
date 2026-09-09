@@ -5,6 +5,53 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [14.0.0]
+
+Foundry VTT **v14** support. Regent runs on **v13 and v14 from one codebase** — there are no
+`game.release.generation` branches, and none were needed.
+
+### Changed
+
+- **`module.json`**: `compatibility` is now `{ minimum: "13", verified: "14", maximum: "14" }`, and the `coffee-pub-blacksmith` requirement moves from `>= 13.19.0` to `>= 14.1.0`.
+- **README** gains the standard badge row, including a green **Foundry v14** badge.
+- **Dialogs go through Blacksmith's `api.dialog`** instead of Foundry's V1 `Dialog`. Two near-identical "Select Encounter Page" dialogs — one on the generic journal drop, one in `_handleEncountersDrop` — are now a single helper, `addEncounterFromJournal`, over `api.dialog.choose`. Each old copy carried its own jQuery-vs-native shim inside the button callback; both are gone.
+  - **This was deprecation hygiene, not a v14 fix.** V1 `Dialog` still resolves on v14 (measured on 14.367), and the old code was not broken. It is removed because it was the last V1 UI in the module and the duplication was a drift risk, not because v14 forced it.
+  - **A dismissal now creates nothing.** Blacksmith's helpers resolve rather than throw when a dialog is dismissed, and the helper returns without adding a page unless the outcome is `SUBMIT` — silently adding a page on Escape would be the worse failure.
+
+### Verified on v14
+
+Measured on a live **14.367** client by the Blacksmith agent:
+
+- **Window opens clean** via `api.openWindow('consult-regent')` — `BlacksmithWindowQuery` renders on `BlacksmithWindowBaseV2`, 1245 nodes, **0 console errors**.
+- **All 91 Font Awesome icons render.** 58 of them use legacy `fas`/`far` (Font Awesome 5) syntax, and those aliases still resolve under **Font Awesome 7**. The single blank icon in the window is Foundry's own titlebar icon carrying `hidden` deliberately, not Regent's.
+- **`canvas.tokens.controlled` and the `controlToken` hook** are unaffected by Scene Levels.
+
+### Not affected by v14
+
+Recorded so the next migration does not re-scan: Regent has no `MeasuredTemplate`, no TinyMCE, no `ActiveEffect` handling, no `ChatLog.MESSAGE_PATTERNS` or custom chat commands, no `detectionModes`, no `createThumbnail`, no V1 `Application`/`FormApplication` windows, and no raw jQuery. Foundry helpers were already namespaced (`foundry.utils.*`, `foundry.applications.handlebars.*`).
+
+### Documentation
+
+Regent adopts the suite documentation standard. It and Vault were the two modules of fifteen that
+never converged; Regent now matches the other twelve.
+
+- **`tools/wiki-sync.mjs` and `tools/check-docs-structure.mjs`** added, taken from Blacksmith HEAD unmodified -- both are repo-agnostic and read their identity from `module.json`. **`.github/workflows/sync-wiki.yml`** added, which is what actually publishes. Regent's documentation now mirrors to the GitHub wiki on push.
+- **`documentation/` restructured** into `api/`, `architecture/`, `userguides/`, `plans/` and `assets/`, with `home.md` and `known-issues.md` at the root. Six loose files at the root had been the whole tree.
+- **Four user guides added** -- getting started, settings, the five worksheets, and sharing answers. Regent previously documented nothing for the person using it.
+- **Three architecture documents added** -- how Regent is built, how it integrates with Blacksmith, and how its styles are scoped.
+- **`documentation/blacksmith-apis.md` deleted.** It restated Blacksmith's API surface inside Regent, which is the duplication the standard exists to stop; Regent's own integration decisions moved to `architecture/architecture-blacksmith-integration.md` and the rest is now a link.
+- **`documentation/note-to-blacksmith-chat-cards.md` deleted** -- correspondence is not documentation, and its conclusions already live in `card-composer.js`.
+- **`documentation/investigation-regent-css.md` absorbed** into `architecture/architecture-styles.md` and deleted. The durable conclusions were kept; the account of finding them was not.
+- **`README.md` rewritten** to the standard's shape, and now carries the suite's AI-assistance disclosure verbatim from the canonical copy in Blacksmith.
+
+### Found while documenting
+
+- **`styles/window-query.css` is not loaded by anything.** 258 lines, no effect -- `styles/default.css` imports only `regent-window.css` and `regent-workspace-forms.css`. Recorded rather than deleted, since some of it may be worth reinstating. Tracked in `documentation/TODO.md`.
+
+### Known untested
+
+- **Send to Chat, the GM Regent Report whisper, and journal creation from a JSON reply have not been exercised in a live world** on v13 or v14. They need a configured AI provider key. This is an untested feature rather than a v14 risk — the chat-card work landed without a live run.
+
 ## [13.1.2]
 
 ### Removed

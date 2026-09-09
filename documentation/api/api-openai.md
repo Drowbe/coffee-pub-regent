@@ -249,10 +249,10 @@ console.log(`Optimized ${optimized} sessions`);
 
 ### **Automatic Protections**
 
-- ✅ **Context Trimming**: Only recent messages sent to API
-- ✅ **Configurable Limits**: Set your preferred context length
-- ✅ **Session Isolation**: Each session is independent
-- ✅ **Auto-Save**: Efficient storage management
+- Yes **Context Trimming**: Only recent messages sent to API
+- Yes **Configurable Limits**: Set your preferred context length
+- Yes **Session Isolation**: Each session is independent
+- Yes **Auto-Save**: Efficient storage management
 
 ## **Integration Notes**
 
