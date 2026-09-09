@@ -10,6 +10,14 @@
  * templates and would, unscoped, restyle every other module's forms and Foundry's own
  * interface.
  *
+ *
+ * COLOURS ARE LIGHT OVERLAYS, NOT DARK ONES. These panels sit on a near-black ground
+ * (`#workspace-section-*` computes to rgb(0,0,0)), so a `rgba(0,0,0,0.1)` fill is not
+ * subtle -- it is arithmetically invisible, and a border-radius on an invisible fill
+ * shows nothing either. The file was authored against a light ground and every tint was
+ * a no-op once it finally loaded. White at the same alpha reads as a raised panel and
+ * lands the strongest state on #313030, which is what regent-workspace-forms.css already
+ * uses for one.
  * This file was written unscoped and left out of the import list, so none of it ran and
  * the omission looked deliberate. The Character worksheet rendered with browser defaults
  * for as long as that was true. Scoped and imported 2026-09-09;
@@ -32,7 +40,7 @@
     padding: 4px 8px;
     border-radius: 4px;
     margin-bottom: 4px;
-    background-color: rgba(0, 0, 0, 0.05);
+    background-color: rgba(255, 255, 255, 0.05);
 }
 
 #coffee-pub-regent-wrapper .workspace-item-name {
@@ -93,7 +101,7 @@
 #coffee-pub-regent-wrapper .primary-info {
     margin: 8px 0;
     padding: 8px;
-    background-color: rgba(0, 0, 0, 0.1);
+    background-color: rgba(255, 255, 255, 0.1);
     border-radius: 4px;
 }
 
@@ -115,7 +123,7 @@
     font-size: 1.1em;
     font-weight: bold;
     padding: 4px 8px;
-    background-color: rgba(0, 0, 0, 0.1);
+    background-color: rgba(255, 255, 255, 0.1);
     border-radius: 4px;
 }
 
@@ -130,13 +138,13 @@
     align-items: center;
     gap: 8px;
     padding: 2px 8px;
-    background-color: rgba(0, 0, 0, 0.05);
+    background-color: rgba(255, 255, 255, 0.05);
     border-radius: 4px;
 }
 
 #coffee-pub-regent-wrapper .details-grid .form-label:hover,
 #coffee-pub-regent-wrapper .movement-grid .form-label:hover {
-    background-color: rgba(0, 0, 0, 0.1);
+    background-color: rgba(255, 255, 255, 0.1);
 }
 
 #coffee-pub-regent-wrapper .details-grid .form-label span:first-child {
@@ -164,7 +172,7 @@
 }
 
 #coffee-pub-regent-wrapper .spell-list-container .workspace-item-container:hover {
-    background-color: rgba(0, 0, 0, 0.1);
+    background-color: rgba(255, 255, 255, 0.1);
 }
 
 #coffee-pub-regent-wrapper .spell-list-container .workspace-item-name i {
@@ -177,18 +185,18 @@
     display: inline-block;
     padding: 2px 6px;
     margin: 2px;
-    background-color: rgba(0, 0, 0, 0.1);
+    background-color: rgba(255, 255, 255, 0.1);
     border-radius: 4px;
     font-size: 0.9em;
 }
 
 #coffee-pub-regent-wrapper .tag:hover {
-    background-color: rgba(0, 0, 0, 0.2);
+    background-color: rgba(255, 255, 255, 0.2);
 }
 
 #coffee-pub-regent-wrapper .tag.custom {
     font-style: italic;
-    border: 1px dashed rgba(0, 0, 0, 0.2);
+    border: 1px dashed rgba(255, 255, 255, 0.2);
 }
 
 #coffee-pub-regent-wrapper .bypass, #coffee-pub-regent-wrapper .mastery {
@@ -207,7 +215,7 @@
 }
 
 #coffee-pub-regent-wrapper .weapon-entry {
-    background-color: rgba(0, 0, 0, 0.05);
+    background-color: rgba(255, 255, 255, 0.05);
     border-radius: 4px;
     padding: 12px;
     margin-bottom: 8px;
@@ -241,7 +249,7 @@
 #coffee-pub-regent-wrapper .weapon-description {
     margin-top: 8px;
     padding-top: 8px;
-    border-top: 1px solid rgba(0, 0, 0, 0.1);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 #coffee-pub-regent-wrapper .weapon-description h3 {
