@@ -1560,12 +1560,22 @@ export class BlacksmithWindowQuery extends BlacksmithWindowBaseV2 {
         const contentElement = document.querySelector(`.regent-message-wrapper[data-message-id="${messageId}"]`);
         let content = contentElement ? contentElement.innerHTML : null;
         
+        // "Create journal" is offered on every answer, but only a STRUCTURED answer can
+        // become one -- the Narrative and Encounter worksheets ask the model for JSON;
+        // ordinary prose replies have none. That is not an error the user made, so it is
+        // reported as a plain explanation rather than thrown into the catch below as a
+        // developer-facing "No JSON content found in the message".
+        const jsonMatch = content ? content.match(/\{[\s\S]*\}/) : null;
+        if (!jsonMatch) {
+            postConsoleAndNotification(
+                MODULE.NAME,
+                "This answer has no journal data. Use the Narrative or Encounter worksheet to generate one, or Copy the text into a journal page yourself.",
+                "", false, true
+            );
+            return;
+        }
+
         try {
-            // Extract just the JSON content from the HTML
-            const jsonMatch = content.match(/\{[\s\S]*\}/);
-            if (!jsonMatch) {
-                throw new Error("No JSON content found in the message");
-            }
             content = jsonMatch[0];
 
             // Parse and process the JSON
@@ -1589,8 +1599,13 @@ export class BlacksmithWindowQuery extends BlacksmithWindowBaseV2 {
                     postConsoleAndNotification(MODULE.NAME, "Can't create the journal entry. The journal type was not found.", strJournalType, false, false);
             }
         } catch (error) {
-            postConsoleAndNotification(MODULE.NAME, "Error processing JSON:", error, false, true);
-
+            // Reached only when JSON was found and then failed: malformed, or missing the
+            // journaltype the switch above needs. Distinct from "there was no JSON at all".
+            postConsoleAndNotification(
+                MODULE.NAME,
+                "Could not build a journal entry from this answer -- its journal data is incomplete or malformed.",
+                error?.message ?? error, false, true
+            );
         }
     }
 
