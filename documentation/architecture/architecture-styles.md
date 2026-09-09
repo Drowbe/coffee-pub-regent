@@ -13,20 +13,19 @@ Regent styles its own window. It does not inherit Blacksmith's, and the reasons 
 @import "regent-workspace-forms.css"; /* worksheet form controls */
 ```
 
-**`styles/window-query.css` is not loaded by anything, and that is a defect rather than dead code.**
-It is 258 lines of workspace-content rules that never made it into the import list. The classes it
-styles -- `.workspace-item-*`, `.primary-info`, `.details-grid`, `.spell-list-container` and the rest
--- **are used in the worksheet templates and are defined in no other stylesheet**, so that markup
-renders unstyled today.
+**All three stylesheets are imported, and a tool proves it.** `node tools/check-styles-loaded.mjs`
+verifies that every stylesheet on disk is reachable from the manifest and that every `@import`
+resolves. Run it after touching the import list.
 
-It cannot simply be imported. **Not one of its rules is scoped**: they are bare class selectors, and
-`.form-label` alone appears 48 times in Regent's templates but would, as a global rule, also style
-every other module's forms and Foundry's own interface. Importing it as it stands trades missing
-styling for leaked styling.
+That check exists because of a real defect: `window-query.css` -- the layout for the Character
+worksheet's panels -- was written, never added to the import list, and therefore never ran. The
+classes it defines appear in no other stylesheet, so those panels rendered with browser defaults for
+as long as that was true, and nothing errored. **A stylesheet nothing imports fails silently and
+looks intentional.**
 
-The fix is to scope every rule to `#coffee-pub-regent-wrapper` and then import it -- mechanical, but
-it changes how the worksheets look, so it wants someone watching the screen. `node tools/check-styles-loaded.mjs`
-reports the file until this is resolved, and that report is correct.
+Fixing it required scoping first. The file had been written with bare class selectors, and importing
+it in that state would have leaked `.form-label` and friends into every other module's windows. The
+missing-styling bug and the leaked-styling bug are the same edit in opposite directions.
 
 ## Regent does not inherit Blacksmith's window CSS
 

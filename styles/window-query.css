@@ -2,10 +2,22 @@
 /* --- Query Window ------------------- */
 /* ------------------------------------ */
 
-/* These styles are unique to the window and therefore not in the dialogue or common files */
+/* Worksheet content: the Character panels (core details, features, spells, weapons).
+ *
+ * EVERY RULE IS SCOPED TO #coffee-pub-regent-wrapper, and must stay that way. Regent
+ * renders inside a shared window frame beside a dozen sibling modules, so a bare class
+ * selector here does not stay here: `.form-label` alone appears 48 times in Regent's own
+ * templates and would, unscoped, restyle every other module's forms and Foundry's own
+ * interface.
+ *
+ * This file was written unscoped and left out of the import list, so none of it ran and
+ * the omission looked deliberate. The Character worksheet rendered with browser defaults
+ * for as long as that was true. Scoped and imported 2026-09-09;
+ * `node tools/check-styles-loaded.mjs` is what found it.
+ */
 
 /* --- Workspace Items -------------- */
-.workspace-item-icon {
+#coffee-pub-regent-wrapper .workspace-item-icon {
     width: 24px;
     height: 24px;
     object-fit: cover;
@@ -14,7 +26,7 @@
     margin-right: 6px;
 }
 
-.workspace-item-container {
+#coffee-pub-regent-wrapper .workspace-item-container {
     display: flex;
     align-items: flex-start;
     padding: 4px 8px;
@@ -23,7 +35,7 @@
     background-color: rgba(0, 0, 0, 0.05);
 }
 
-.workspace-item-name {
+#coffee-pub-regent-wrapper .workspace-item-name {
     font-weight: normal;
     white-space: nowrap;
     overflow: hidden;
@@ -31,18 +43,18 @@
     color: var(--color-text-light-highlight);
 }
 
-.workspace-item-details {
+#coffee-pub-regent-wrapper .workspace-item-details {
     flex-grow: 1;
     overflow: hidden;
 }
 
-.workspace-item-description {
+#coffee-pub-regent-wrapper .workspace-item-description {
     font-size: 0.9em;
     color: var(--color-text-light-secondary);
     margin-top: 2px;
 }
 
-.workspace-item-text {
+#coffee-pub-regent-wrapper .workspace-item-text {
     font-size: 0.9em;
     color: var(--color-text-light);
     margin-top: 4px;
@@ -51,20 +63,20 @@
     line-height: 1.4;
 }
 
-.workspace-item-text p {
+#coffee-pub-regent-wrapper .workspace-item-text p {
     margin: 0 0 4px 0;
 }
 
-.workspace-item-text ul {
+#coffee-pub-regent-wrapper .workspace-item-text ul {
     margin: 4px 0 4px 16px;
 }
 
-.workspace-item-text li {
+#coffee-pub-regent-wrapper .workspace-item-text li {
     margin-bottom: 2px;
 }
 
 /* --- Workspace Grid Layouts -------------- */
-.workspace-grid-2col {
+#coffee-pub-regent-wrapper .workspace-grid-2col {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 4px;
@@ -72,34 +84,34 @@
 }
 
 /* Ensure items in the grid maintain their layout */
-.workspace-grid-2col .form-label {
+#coffee-pub-regent-wrapper .workspace-grid-2col .form-label {
     margin: 0;
     padding: 4px;
 }
 
 /* --- Character Core Specific Styles -------------- */
-.primary-info {
+#coffee-pub-regent-wrapper .primary-info {
     margin: 8px 0;
     padding: 8px;
     background-color: rgba(0, 0, 0, 0.1);
     border-radius: 4px;
 }
 
-.primary-info-item {
+#coffee-pub-regent-wrapper .primary-info-item {
     margin-bottom: 8px;
 }
 
-.primary-info-item:last-child {
+#coffee-pub-regent-wrapper .primary-info-item:last-child {
     margin-bottom: 0;
 }
 
-.primary-info-item .info-label {
+#coffee-pub-regent-wrapper .primary-info-item .info-label {
     font-size: 0.9em;
     color: var(--color-text-light-highlight);
     margin-bottom: 2px;
 }
 
-.primary-info-item .info-value {
+#coffee-pub-regent-wrapper .primary-info-item .info-value {
     font-size: 1.1em;
     font-weight: bold;
     padding: 4px 8px;
@@ -107,12 +119,12 @@
     border-radius: 4px;
 }
 
-.details-grid {
+#coffee-pub-regent-wrapper .details-grid {
     margin-top: 4px;
 }
 
-.details-grid .form-label,
-.movement-grid .form-label {
+#coffee-pub-regent-wrapper .details-grid .form-label,
+#coffee-pub-regent-wrapper .movement-grid .form-label {
     display: flex;
     justify-content: flex-start;
     align-items: center;
@@ -122,46 +134,46 @@
     border-radius: 4px;
 }
 
-.details-grid .form-label:hover,
-.movement-grid .form-label:hover {
+#coffee-pub-regent-wrapper .details-grid .form-label:hover,
+#coffee-pub-regent-wrapper .movement-grid .form-label:hover {
     background-color: rgba(0, 0, 0, 0.1);
 }
 
-.details-grid .form-label span:first-child {
+#coffee-pub-regent-wrapper .details-grid .form-label span:first-child {
     min-width: 80px;
     flex-shrink: 0;
 }
 
-.details-grid .form-label span.value,
-.movement-grid .form-label span.value {
+#coffee-pub-regent-wrapper .details-grid .form-label span.value,
+#coffee-pub-regent-wrapper .movement-grid .form-label span.value {
     color: var(--color-text-light-highlight);
     flex: 1;
     padding-left: 4px;
 }
 
 /* --- Spell List Specific Styles -------------- */
-.spell-list-container {
+#coffee-pub-regent-wrapper .spell-list-container {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 4px;
     margin-top: 4px;
 }
 
-.spell-list-container .workspace-item-container {
+#coffee-pub-regent-wrapper .spell-list-container .workspace-item-container {
     margin-bottom: 0;
 }
 
-.spell-list-container .workspace-item-container:hover {
+#coffee-pub-regent-wrapper .spell-list-container .workspace-item-container:hover {
     background-color: rgba(0, 0, 0, 0.1);
 }
 
-.spell-list-container .workspace-item-name i {
+#coffee-pub-regent-wrapper .spell-list-container .workspace-item-name i {
     margin-left: 4px;
     opacity: 0.7;
 }
 
 /* --- Tag Styles -------------- */
-.tag {
+#coffee-pub-regent-wrapper .tag {
     display: inline-block;
     padding: 2px 6px;
     margin: 2px;
@@ -170,16 +182,16 @@
     font-size: 0.9em;
 }
 
-.tag:hover {
+#coffee-pub-regent-wrapper .tag:hover {
     background-color: rgba(0, 0, 0, 0.2);
 }
 
-.tag.custom {
+#coffee-pub-regent-wrapper .tag.custom {
     font-style: italic;
     border: 1px dashed rgba(0, 0, 0, 0.2);
 }
 
-.bypass, .mastery {
+#coffee-pub-regent-wrapper .bypass, #coffee-pub-regent-wrapper .mastery {
     font-size: 0.8em;
     color: var(--color-text-light-highlight);
     margin-left: 4px;
@@ -187,69 +199,69 @@
 }
 
 /* Ensure the value container can wrap tags */
-.form-label .value {
+#coffee-pub-regent-wrapper .form-label .value {
     display: flex;
     flex-wrap: wrap;
     gap: 4px;
     align-items: center;
 }
 
-.weapon-entry {
+#coffee-pub-regent-wrapper .weapon-entry {
     background-color: rgba(0, 0, 0, 0.05);
     border-radius: 4px;
     padding: 12px;
     margin-bottom: 8px;
 }
 
-.weapon-entry:last-child {
+#coffee-pub-regent-wrapper .weapon-entry:last-child {
     margin-bottom: 0;
 }
 
-.weapon-header {
+#coffee-pub-regent-wrapper .weapon-header {
     margin-bottom: 8px;
 }
 
-.weapon-name {
+#coffee-pub-regent-wrapper .weapon-name {
     font-size: 1.1em;
     font-weight: bold;
     color: var(--color-text-dark-primary);
 }
 
-.weapon-stats {
+#coffee-pub-regent-wrapper .weapon-stats {
     font-size: 0.9em;
     margin-bottom: 4px;
     color: var(--color-text-dark);
     line-height: 1.4;
 }
 
-.weapon-stats strong {
+#coffee-pub-regent-wrapper .weapon-stats strong {
     color: var(--color-text-dark-primary);
 }
 
-.weapon-description {
+#coffee-pub-regent-wrapper .weapon-description {
     margin-top: 8px;
     padding-top: 8px;
     border-top: 1px solid rgba(0, 0, 0, 0.1);
 }
 
-.weapon-description h3 {
+#coffee-pub-regent-wrapper .weapon-description h3 {
     font-size: 0.9em;
     font-weight: bold;
     margin-bottom: 4px;
     color: var(--color-text-dark-primary);
 }
 
-.weapon-description p {
+#coffee-pub-regent-wrapper .weapon-description p {
     font-size: 0.9em;
     line-height: 1.4;
     margin: 0 0 8px 0;
 }
 
-.weapon-description ul {
+#coffee-pub-regent-wrapper .weapon-description ul {
     margin: 4px 0 8px 16px;
 }
 
-.weapon-description li {
+#coffee-pub-regent-wrapper .weapon-description li {
     font-size: 0.9em;
     line-height: 1.4;
     margin-bottom: 4px;

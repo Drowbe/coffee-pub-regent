@@ -301,13 +301,19 @@ export class TokenHandler {
                 };
                 return acc;
             }, {}),
+            // Only numeric speeds. `system.attributes.movement` also carries `units`, the
+            // boolean `hover`, a Set in `ignoredDifficultTerrain` and an object in
+            // `fromSpecies`; a truthiness test kept all of them, and the panel rendered
+            // "ignoredDifficultTerrain [object Set] ft". Filtering on the VALUE's type
+            // rather than naming keys means a future dnd5e addition cannot reintroduce it.
             movement: Object.entries(actor.system.attributes.movement || {})
-                .filter(([key]) => key !== 'units')
                 .reduce((acc, [key, value]) => {
-                    if (value) acc[key] = { value };
+                    if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+                        acc[key] = { value };
+                    }
                     return acc;
                 }, {}),
-            movementUnits: actor.system.attributes.movement.units,
+            movementUnits: actor.system.attributes.movement?.units,
             skills: Object.entries(actor.system.skills || {}).reduce((acc, [key, skill]) => {
                 acc[key] = {
                     label: CONFIG.DND5E.skills[key]?.label || key,

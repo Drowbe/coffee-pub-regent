@@ -44,9 +44,16 @@ never converged; Regent now matches the other twelve.
 - **`documentation/investigation-regent-css.md` absorbed** into `architecture/architecture-styles.md` and deleted. The durable conclusions were kept; the account of finding them was not.
 - **`README.md` rewritten** to the standard's shape, and now carries the suite's AI-assistance disclosure verbatim from the canonical copy in Blacksmith.
 
+### Fixed
+
+- **The Character worksheet was rendering unstyled.** `styles/window-query.css` -- the stylesheet holding the layout for the core details, features, spells and weapons panels -- was never in the import list, so none of its 41 rules ran. The classes it defines are used in those templates and appear in no other stylesheet, so those panels fell back to browser defaults: no grids, no item cards, no icon sizing.
+  - **It could not simply be imported.** Not one rule was scoped. `.form-label` alone appears 48 times in Regent's templates and, as a bare global selector, would have restyled every other module's forms and Foundry's own interface. All 41 rules are now scoped to `#coffee-pub-regent-wrapper` and the file is imported; rule and declaration counts are unchanged.
+  - Found by `node tools/check-styles-loaded.mjs`, adopted the same day.
+- **Movement showed internal data instead of speeds.** The Character panel listed `ignoredDifficultTerrain [object Set] ft` and `fromSpecies [object Object] ft` beside walk and climb. `token-handler.js` excluded only the `units` key and kept everything else truthy, but dnd5e 5.x also stores a boolean, a `Set` and an object in `system.attributes.movement`. It now filters on the value being a positive finite number, so a future dnd5e addition cannot reintroduce the same defect.
+
 ### Found while documenting
 
-- **`styles/window-query.css` is not loaded by anything.** 258 lines, no effect -- `styles/default.css` imports only `regent-window.css` and `regent-workspace-forms.css`. Recorded rather than deleted, since some of it may be worth reinstating. Tracked in `documentation/TODO.md`.
+- **`styles/window-query.css` was not loaded by anything** -- 258 lines with no effect. First recorded as dead code; it turned out to be missing styling, and is fixed above. The lesson is worth keeping: a tool reporting "nothing loads this file" reads like *delete it* and can equally mean *you forgot to load it*, and the two have opposite fixes.
 
 ### Known untested
 

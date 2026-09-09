@@ -24,22 +24,15 @@
 
 ## Optional cleanup
 
-3. **`styles/window-query.css` is not loaded, and the worksheets are unstyled because of it.**
-   The classes it defines are used in the templates and appear in no other stylesheet, so this is
-   missing styling rather than dead code. It cannot be imported as-is: none of its 44 rules is
-   scoped, and `.form-label` -- used 48 times in Regent's templates -- would leak into every other
-   module's forms as a global rule. Scope every rule to `#coffee-pub-regent-wrapper`, then import,
-   then look at the worksheets. `node tools/check-styles-loaded.mjs` flags this correctly until done.
-
-4. **Icon prefixes are mixed** -- 53 legacy `fas`/`far` against the modern `fa-solid`/`fa-regular`.
+3. **Icon prefixes are mixed** -- 53 legacy `fas`/`far` against the modern `fa-solid`/`fa-regular`.
    Both resolve under Font Awesome 7, so this is consistency only, with no functional effect.
 
-5. **A dead jQuery normalisation branch remains** in `activateListeners` (`window-query.js`).
+4. **A dead jQuery normalisation branch remains** in `activateListeners` (`window-query.js`).
    ApplicationV2 never passes jQuery, so it cannot fire on v13 or v14. It is kept because
    `module.json` still claims `minimum: "13"` and no v13 install exists to prove the branch
    unreachable there.
 
 ## Repo
 
-6. Add optional `.webp` banner files under `images/banners/` for stock narrative card images
+5. Add optional `.webp` banner files under `images/banners/` for stock narrative card images
    (see `images/banners/README.md`).
