@@ -29,30 +29,20 @@ missing-styling bug and the leaked-styling bug are the same edit in opposite dir
 
 ## Diagnosing a stylesheet that seems not to apply
 
-Two traps, both of which cost a round here.
+Two traps cost a round here, and both are suite-wide rather than Regent's:
+`document.styleSheets` does not contain `@import`ed files, so the obvious one-liner reports every
+module as missing its CSS; and a rule can be in the cascade, report the value you authored, and still
+be invisible, because a low-alpha black fill on a near-black ground composites to the ground.
 
-**`document.styleSheets` does not list an `@import`ed file.** Regent's stylesheets are reached
-through `default.css`, so a check like this reports nothing even when everything is loaded:
+Both are documented once, in the hub:
+**[CSS Traps](https://github.com/Drowbe/coffee-pub-blacksmith/wiki/global-css-traps)**. Read that
+rather than a copy here -- Regent's eleven fills are its worked example.
 
-```javascript
-[...document.styleSheets].map(s => s.href).filter(h => h && /regent/.test(h))   // -> []
-```
+The offline half is `node tools/check-styles-loaded.mjs`, which catches a stylesheet no `@import`
+reaches and an `@import` naming a file that does not exist. It cannot tell you whether a rule applied
+at runtime.
 
-An imported sheet hangs off the importing one as a `CSSImportRule`, reachable at
-`rule.styleSheet`; you have to walk the tree. The real chain is inline `<style>` to
-`styles/default.css` to each imported file. **`rule.styleSheet === null` on a `CSSImportRule` is the
-genuine "failed to load" signal** -- an empty `href` filter is not, and would report every module in
-the suite as missing its CSS. Read `getComputedStyle` on a real element instead; it answers the
-question directly.
-
-**A rule can apply and still be invisible.** These panels sit on a near-black ground, so a
-`rgba(0, 0, 0, 0.1)` fill composites to exactly the parent colour. `getComputedStyle` reports the
-value you authored, the rule is in the cascade, nothing is overriding it, and the screen does not
-change -- so every diagnostic says "working" while the symptom says otherwise. A border-radius on an
-invisible fill shows nothing either, which removes the second clue.
-
-**Check the ancestor chain's computed backgrounds before concluding a rule did not land.** Overlays
-on this surface are white at low alpha; the strongest lands near `#313030`, which
+**Overlays on this surface are white at low alpha.** The strongest lands near `#313030`, which
 `regent-workspace-forms.css` already uses for a raised panel.
 
 ## Regent does not inherit Blacksmith's window CSS
