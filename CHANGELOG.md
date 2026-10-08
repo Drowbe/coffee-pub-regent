@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **`scripts/window-query.js`: dead event wiring removed.** `BlacksmithWindowQuery` is an `ApplicationV2` window, which never calls `activateListeners` -- and Blacksmith's own base class, which used to supply one, had it removed. `activateListeners` (and the `_attachWorksheetListenersToWrapper` it deferred via `requestAnimationFrame`) were therefore unreachable: nothing in the module ever ran them.
+  - **Narrative-cookie persistence now actually runs.** The `change` listener that called `saveNarrativeCookies`, and the one-time `loadNarrativeCookies` call, lived only in the dead code. Both are now wired through `_attachRegentDelegationOnce`'s document-level delegation (load deferred to `_onFirstRender`), matching the pattern the rest of the file already uses for clicks, drag/drop and the Enter key.
+  - **A native form submit from any field other than the message textarea is now caught and stopped**, instead of silently doing nothing (there was no listener to call `preventDefault`), which left Enter in e.g. a narrative text field free to trigger the browser's default form submission and navigate the window away. It is swallowed, not routed to `_onSubmit` -- sending is already explicit (the `regentSubmit` action, or Enter in the message textarea with "Enter Sends" checked), and other fields in the form are data entry, not a second way to send.
+  - **The remaining wiring in the dead code -- the add-tokens/add-monsters/add-npcs/add-all/roll-dice button clicks, the card buttons, and the workspace tab clicks -- was already duplicated by document-level delegation elsewhere in the file and is simply deleted, not moved.**
+  - **Checked, not a bug:** `initialize()` is called from `regent.js` with no `html` argument, so `switchWorkspace(html, ...)` runs with `html === undefined` on open. `switchWorkspace` already has a fallback branch for a falsy `html` that queries `document` directly, so the initial workspace tab/visibility still resolves correctly.
+
 ## [14.0.0]
 
 Foundry VTT **v14** support. Regent runs on **v13 and v14 from one codebase** — there are no
@@ -62,7 +72,7 @@ Driven on 14.367 by the Blacksmith agent, with two API calls authorised by the a
 
 - **Send to Chat builds a correct card**, 0 console errors. `<br><br>` became four real paragraphs, lists survived as `<ul>`/`<li>`, bold and italic both rendered, and there was no `[object Object]` and no visible markdown pipes.
 - **The GM Regent Report whisper reaches only GMs.** The whisper array is stored verbatim, so a player never sees it; identity, avatar, section and prose all render.
-- **All three dialog paths behave.** Choosing a page resolves that page; the close button and Cancel both resolve to a dismissal and create nothing. The Escape *key binding* is not proven -- a synthetic keystroke cannot reach Foundry's handler -- but the dismissal path it triggers is.
+- **All three dialog paths behave.** Choosing a page resolves that page; the close button and Cancel both resolve to a dismissal and create nothing. The Escape *key binding* is not proven, but the dismissal path it triggers is. A scripted `KeyboardEvent` carries `isTrusted: false` and Foundry's keybinding layer ignores it, so that test could never have succeeded whatever the dialog does -- it needs a real keystroke.
 
 ### Known broken, scheduled after v14
 
@@ -72,7 +82,7 @@ Driven on 14.367 by the Blacksmith agent, with two API calls authorised by the a
 ### Still unverified
 
 - **Foundry v13.** `compatibility.minimum` remains `"13"`, but no v13 client was available during this work, so nothing in this release was exercised there. The claim rests on the code carrying no v14-only API and no `game.release.generation` branch.
-- **The Escape key on the page-choice dialog.** The dismissal path it triggers is proven; the key binding reaching Foundry's handler is not, because a synthetic keystroke cannot test it.
+- **The Escape key on the page-choice dialog.** The dismissal path it triggers is proven; the key binding is not. A scripted `KeyboardEvent` carries `isTrusted: false`, which Foundry's keybinding layer ignores, so only a real keystroke can verify it.
 
 ## [13.1.2]
 

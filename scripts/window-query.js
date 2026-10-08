@@ -388,12 +388,16 @@ export class BlacksmithWindowQuery extends BlacksmithWindowBaseV2 {
         }
     };
 
-    /** One-time document delegation for workspace tab buttons (so they work regardless of which part activateListeners receives). */
+    /** One-time document delegation for workspace tab buttons (so they work regardless of when the body part's HTML lands). */
     static _workspaceDelegationAttached = false;
     static _cardButtonDelegationAttached = false;
     static _enterKeyDelegationAttached = false;
-    /** One-time document delegation for drag/drop so drop targets work when Application V2 body part renders after activateListeners. */
+    /** One-time document delegation for drag/drop so drop targets work when Application V2 body part renders after _onFirstRender. */
     static _dropDelegationAttached = false;
+    /** One-time document delegation for narrative-cookie persistence (see saveNarrativeCookies/loadNarrativeCookies). */
+    static _narrativeCookieDelegationAttached = false;
+    /** One-time document delegation that swallows a native form submit triggered from any field other than the message textarea (which sends via the keydown delegation below, or via the regentSubmit action). Without this, Enter in a plain text input elsewhere in the form (e.g. a narrative field) triggers the browser's default form submission and navigates the window away. */
+    static _formSubmitDelegationAttached = false;
 
     // ************************************
     // ** OPTIONS Set Defaults
@@ -555,8 +559,7 @@ export class BlacksmithWindowQuery extends BlacksmithWindowBaseV2 {
 
     /**
      * Attach document-level delegation for workspace tabs and card buttons once.
-     * Called from _onFirstRender (so it runs even if activateListeners is never called with body HTML)
-     * and from activateListeners (to keep _ref current).
+     * Called from _onFirstRender, so it runs regardless of when the body part's HTML lands.
      */
     _attachRegentDelegationOnce() {
         BlacksmithWindowQuery._ref = this;
@@ -697,11 +700,34 @@ export class BlacksmithWindowQuery extends BlacksmithWindowBaseV2 {
                 }
             }, true);
         }
+        if (!BlacksmithWindowQuery._narrativeCookieDelegationAttached) {
+            BlacksmithWindowQuery._narrativeCookieDelegationAttached = true;
+            document.addEventListener('change', (e) => {
+                if (!e.target?.matches?.('input, select, textarea')) return;
+                const wrapper = e.target.closest?.('#coffee-pub-regent-wrapper');
+                if (!wrapper) return;
+                const w = BlacksmithWindowQuery._ref;
+                if (!w) return;
+                saveNarrativeCookies(w.workspaceId);
+            }, true);
+        }
+        if (!BlacksmithWindowQuery._formSubmitDelegationAttached) {
+            BlacksmithWindowQuery._formSubmitDelegationAttached = true;
+            document.addEventListener('submit', (e) => {
+                const wrapper = e.target?.closest?.('#coffee-pub-regent-wrapper');
+                if (!wrapper) return;
+                // Sending the message already happens explicitly (regentSubmit action,
+                // or Enter in the message textarea above). This only catches a native
+                // implicit submit from some other field in the form and stops it from
+                // navigating the window away; it is not treated as "send".
+                e.preventDefault();
+            }, true);
+        }
     }
 
     /**
      * Attach document-level drag/drop delegation once so drop targets work when Application V2
-     * body part renders after activateListeners (workspace drop zones may not exist at attach time).
+     * body part renders after _onFirstRender (workspace drop zones may not exist at attach time).
      */
     _attachDropDelegationOnce() {
         if (BlacksmithWindowQuery._dropDelegationAttached) return;
@@ -748,222 +774,9 @@ export class BlacksmithWindowQuery extends BlacksmithWindowBaseV2 {
     async _onFirstRender(_context, options) {
         await super._onFirstRender?.(_context, options);
         this._attachRegentDelegationOnce();
+        // Deferred so the wrapper exists in DOM even though the body part (Application V2 PARTS) can render after this hook.
+        requestAnimationFrame(() => loadNarrativeCookies(this.workspaceId));
         postConsoleAndNotification(MODULE.NAME, 'Regent: _onFirstRender finished, document listeners attached', '', true, false);
-    }
-
-    activateListeners(html) {
-        postConsoleAndNotification(MODULE.NAME, 'Regent: activateListeners called', (html?.nodeName ?? html?.constructor?.name ?? 'unknown').toString(), true, false);
-        super.activateListeners(html);
-
-        // v13 / Application V2: html may be part content; resolve to root that contains the Regent form
-        let htmlElement = html;
-        if (html && (html.jquery || typeof html.find === 'function')) {
-            htmlElement = html[0] || html.get?.(0) || html;
-        } else if (html && typeof html.querySelectorAll !== 'function') {
-            htmlElement = null;
-        }
-        if (!htmlElement || !htmlElement.querySelector?.('form')) {
-            htmlElement = this._getRoot() ?? this.element;
-        }
-        if (!htmlElement) {
-            this._attachRegentDelegationOnce();
-            return;
-        }
-
-        // don't let these buttons submit the main form
-        htmlElement.addEventListener('click', (event) => {
-            const target = event.target.closest('.regent-send-button-normal');
-            if (target) {
-                event.preventDefault();
-                const form = htmlElement.querySelector('form');
-                if (form) {
-                    this._onSubmit(event, form);
-                }
-            }
-        });
-
-        // Card buttons: document-level already attached in _attachRegentDelegationOnce (from _onFirstRender or above)
-        this._attachRegentDelegationOnce();
-
-        // Legacy: also on root
-        htmlElement.addEventListener('click', (event) => {
-            const target = event.target.closest('.regent-chat-button-json');
-            if (target) {
-                postConsoleAndNotification(MODULE.NAME, 'Regent: card button (JSON) via root', '', true, false);
-                this._onSendToJson.call(this, event, target);
-            }
-        });
-        htmlElement.addEventListener('click', (event) => {
-            const target = event.target.closest('.regent-chat-button-chat');
-            if (target) {
-                postConsoleAndNotification(MODULE.NAME, 'Regent: card button (Send to Chat) via root', '', true, false);
-                this._onSendToChat.call(this, event, target);
-            }
-        });
-        htmlElement.addEventListener('click', (event) => {
-            const target = event.target.closest('.regent-chat-button-copy');
-            if (target) {
-                postConsoleAndNotification(MODULE.NAME, 'Regent: card button (Copy) via root', '', true, false);
-                this._onCopyToClipboard.call(this, event, target);
-            }
-        });
-        const form = htmlElement.querySelector('form');
-        if (form) {
-            form.addEventListener('submit', this._onSubmit.bind(this));
-        }
-
-        // Handle the Enter key: checkbox is in action bar, so resolve from document
-        const inputMessage = htmlElement.querySelector('textarea[name="regent-input-message"]') ?? document.querySelector(`#${this.id} textarea[name="regent-input-message"]`);
-
-        if (inputMessage) {
-            inputMessage.addEventListener('keypress', (event) => {
-                if (event.key !== 'Enter') return;
-                const enterSubmitsCheckbox = document.getElementById('enterSubmits');
-                if (!enterSubmitsCheckbox?.checked) return;
-                event.preventDefault();
-                const form = htmlElement.querySelector('form') ?? document.querySelector(`#${this.id} form`);
-                if (form) {
-                    postConsoleAndNotification(MODULE.NAME, 'Regent: Enter key sent message (ENTER Sends checked)', '', true, false);
-                    this._onSubmit(event, form);
-                }
-            });
-        }
-
-
-        // -- WATCH FOR WORKSPACE CHANGES --
-
-        // Call toggleWorkspaceVisibility based on initial mode
-        // Workspaces always expanded; ensure correct tab is active
-        this.switchWorkspace(htmlElement, `regent-query-workspace-${this.workspaceId}`);
-
-        // (Workspace toggle button removed: workspaces always expanded.)
-
-        this._attachRegentDelegationOnce();
-
-        // Direct listener on wrapper so workspace tab clicks are handled even if document doesn't bubble
-        const wrapperEl = htmlElement.querySelector('#coffee-pub-regent-wrapper') ?? document.querySelector(`#${this.id} #coffee-pub-regent-wrapper`);
-        if (!wrapperEl) postConsoleAndNotification(MODULE.NAME, 'Regent: wrapper not found in activateListeners', '', true, false);
-        if (wrapperEl) {
-            wrapperEl.addEventListener('click', (e) => {
-                const clickedButton = e.target.closest?.('[id^="regent-query-button-"]');
-                if (!clickedButton?.id) return;
-                e.preventDefault();
-                e.stopPropagation();
-                postConsoleAndNotification(MODULE.NAME, `Regent: workspace tab clicked (wrapper) id=${clickedButton.id}`, '', true, false);
-                const workspaceId = clickedButton.id.replace('regent-query-button-', 'regent-query-workspace-');
-                this.switchWorkspace(wrapperEl, workspaceId);
-            });
-            // Card buttons on wrapper too (fallback if document capture doesn't receive events)
-            wrapperEl.addEventListener('click', (e) => {
-                const jsonBtn = e.target.closest('.regent-chat-button-json');
-                if (jsonBtn) {
-                    e.preventDefault();
-                    postConsoleAndNotification(MODULE.NAME, 'Regent: card button (JSON) wrapper', '', true, false);
-                    this._onSendToJson.call(this, e, jsonBtn);
-                    return;
-                }
-                const chatBtn = e.target.closest('.regent-chat-button-chat');
-                if (chatBtn) {
-                    e.preventDefault();
-                    postConsoleAndNotification(MODULE.NAME, 'Regent: card button (Send to Chat) wrapper', '', true, false);
-                    this._onSendToChat.call(this, e, chatBtn);
-                    return;
-                }
-                const copyBtn = e.target.closest('.regent-chat-button-copy');
-                if (copyBtn) {
-                    e.preventDefault();
-                    postConsoleAndNotification(MODULE.NAME, 'Regent: card button (Copy) wrapper', '', true, false);
-                    this._onCopyToClipboard.call(this, e, copyBtn);
-                }
-            });
-        }
-
-        // Fallback: root listener (in case wrapper isn't found from htmlElement)
-        htmlElement.addEventListener('click', (e) => {
-            const clickedButton = e.target.closest?.('[id^="regent-query-button-"]');
-            if (!clickedButton?.id) return;
-            e.preventDefault();
-            postConsoleAndNotification(MODULE.NAME, `Regent: workspace tab clicked (root) id=${clickedButton.id}`, '', true, false);
-            const workspaceId = clickedButton.id.replace('regent-query-button-', 'regent-query-workspace-');
-            this.switchWorkspace(htmlElement, workspaceId);
-        });
-
-        // Worksheet/drop zone/button listeners: attach to wrapper from document after paint so they work when activateListeners doesn't receive body (Application V2 PARTS)
-        requestAnimationFrame(() => this._attachWorksheetListenersToWrapper());
-    }
-
-    /**
-     * Attach worksheet click handlers and drop zone handlers to #coffee-pub-regent-wrapper from document.
-     * Called deferred (requestAnimationFrame) so the wrapper exists in DOM even when activateListeners got a fragment.
-     */
-    _attachWorksheetListenersToWrapper() {
-        const wrapper = document.querySelector(`#${this.id} #coffee-pub-regent-wrapper`);
-        if (!wrapper) return;
-        if (wrapper.dataset.regentWorksheetAttached === '1') return;
-        wrapper.dataset.regentWorksheetAttached = '1';
-
-        // Drop zones are handled by document-level delegation (_attachDropDelegationOnce) so they work
-        // when Application V2 body part renders after activateListeners (quick encounter, etc.).
-
-        wrapper.querySelectorAll('.add-tokens-button').forEach((button) => {
-            button.addEventListener('click', async (event) => {
-                event.preventDefault();
-                const zoneId = (event.target.id || button.id || '').split('-').pop();
-                if (!zoneId) return;
-                await this.addTokensToContainer(zoneId, 'player');
-                await updateAllCounts(zoneId);
-                const section = document.getElementById(`workspace-section-tokens-content-${zoneId}`);
-                if (section?.classList.contains('collapsed')) toggleSection(`workspace-section-tokens-content-${zoneId}`, button);
-            });
-        });
-        wrapper.querySelectorAll('.add-monsters-button').forEach((button) => {
-            button.addEventListener('click', async (event) => {
-                event.preventDefault();
-                const zoneId = (event.target.id || button.id || '').split('-').pop();
-                if (!zoneId) return;
-                await this.addTokensToContainer(zoneId, 'monster');
-                const section = document.getElementById(`workspace-section-monsters-content-${zoneId}`);
-                if (section?.classList.contains('collapsed')) toggleSection(`workspace-section-monsters-content-${zoneId}`, button);
-            });
-        });
-        wrapper.querySelectorAll('.add-npcs-button').forEach((button) => {
-            button.addEventListener('click', async (event) => {
-                event.preventDefault();
-                const zoneId = (event.target.id || button.id || '').split('-').pop();
-                if (!zoneId) return;
-                await this.addTokensToContainer(zoneId, 'npc');
-                await updateAllCounts(zoneId);
-                const section = document.getElementById(`workspace-section-npcs-content-${zoneId}`);
-                if (section?.classList.contains('collapsed')) toggleSection(`workspace-section-npcs-content-${zoneId}`, button);
-            });
-        });
-
-        wrapper.querySelectorAll('.add-all-button').forEach((button) => {
-            button.addEventListener('click', async (event) => {
-                event.preventDefault();
-                const zoneId = (event.target.id || button.id || '').split('-').pop();
-                if (!zoneId) return;
-                await this.addAllTokensToContainer(zoneId);
-                for (const sel of [`workspace-section-tokens-content-${zoneId}`, `workspace-section-monsters-content-${zoneId}`, `workspace-section-npcs-content-${zoneId}`, `workspace-section-encounter-content-${zoneId}`]) {
-                    const section = document.getElementById(sel);
-                    if (section?.classList.contains('collapsed')) toggleSection(sel, button);
-                }
-            });
-        });
-
-        loadNarrativeCookies(this.workspaceId);
-        wrapper.querySelectorAll('input, select, textarea').forEach((element) => {
-            element.addEventListener('change', () => saveNarrativeCookies(this.workspaceId));
-        });
-
-        wrapper.addEventListener('click', (event) => {
-            const target = event.target.closest('.roll-dice-button');
-            if (target) {
-                event.preventDefault();
-                const zoneId = (target.id || '').split('-').pop();
-                if (zoneId) this._handleRequestRollClick(zoneId);
-            }
-        });
     }
 
     /**
